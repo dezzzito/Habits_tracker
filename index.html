@@ -4,6 +4,14 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>Mis hábitos</title>
+<link rel="icon" href="icon.svg" type="image/svg+xml">
+<link rel="icon" href="favicon-32.png" sizes="32x32" type="image/png">
+<link rel="apple-touch-icon" href="apple-touch-icon.png">
+<link rel="manifest" href="manifest.webmanifest">
+<meta name="theme-color" content="#12151c">
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-title" content="Hábitos">
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Manrope:wght@400;500;600;700&display=swap" rel="stylesheet">
@@ -35,7 +43,7 @@ button,input,select{font:inherit;color:inherit}
 .dd div{position:absolute;right:0;top:100%;background:var(--card);border:1px solid var(--bd);border-radius:6px;z-index:5;display:flex;flex-direction:column;min-width:130px;overflow:hidden}
 .dd button{background:none;border:0;padding:10px 14px;text-align:left;cursor:pointer}.dd button:hover{background:var(--cell)}
 .hw{overflow-x:auto;padding-bottom:6px}
-.hi{display:inline-block;min-width:100%}
+.hi{display:inline-block;min-width:100%;padding:3px 4px 3px 0}
 .ml{display:grid;grid-auto-flow:column;grid-auto-columns:12px;gap:5px;height:20px;margin-left:44px;font-size:12px;color:var(--fg)}
 .ml span{white-space:nowrap}
 .bd{display:flex}
@@ -50,8 +58,9 @@ button,input,select{font:inherit;color:inherit}
 .c.l4{background:var(--g)}
 .c.f{visibility:hidden}
 .c.t{outline:1.5px solid var(--fg)}
-.lt{display:flex;justify-content:flex-end;margin-top:22px}
-.lt .btn{font-weight:600;padding:12px 14px}.lt .btn.ok{color:var(--g);border-color:var(--g)}
+.lt{display:flex;justify-content:space-between;align-items:center;gap:12px;flex-wrap:wrap;margin-top:22px}
+.st{font-size:14px;color:var(--mut)}.st b{color:var(--fg)}
+.lt .btn{font-weight:600;padding:12px 14px;margin-left:auto}.lt .btn.ok{color:var(--g);border-color:var(--g)}
 .empty{text-align:center;color:var(--mut);padding:50px 0}
 .ban{background:var(--warn);border:1px solid var(--warnb);border-radius:4px;padding:16px;margin:16px 0 40px}
 .ph{display:flex;gap:24px;flex-wrap:wrap;margin-bottom:40px}
@@ -89,6 +98,7 @@ footer{text-align:center;color:var(--mut);padding:30px 0 50px}
 </nav>
 <main id="app"></main>
 <footer>Hecho con <span style="color:#f472b6">♥</span><div id="ss"></div></footer>
+<input type="color" id="cc" tabindex="-1" aria-hidden="true" style="position:fixed;left:-100px;top:0;width:1px;height:1px;opacity:0;pointer-events:none">
 <dialog id="dlg">
  <form method="dialog" id="frm">
   <label for="nm">Nombre del hábito</label>
@@ -101,7 +111,7 @@ footer{text-align:center;color:var(--mut);padding:30px 0 50px}
 const K='habitos_v1',$=s=>document.querySelector(s);
 const MES=['Ene','Feb','Mar','Abr','May','Jun','Jul','Ago','Sep','Oct','Nov','Dic'];
 const DIAS=['Lun','','Mié','','Vie','',''];
-let Q='',REORD=false;
+let Q='',REORD=false,YR=null;
 let S=(()=>{try{const d=JSON.parse(localStorage.getItem(K));if(d&&d.habits)return d}catch(e){}
  return{habits:[],user:'Usuario',theme:matchMedia('(prefers-color-scheme: dark)').matches?'dark':'light'}})();
 const norm=o=>{o.habits=o.habits||[];o.habits.forEach(h=>{h.dates=h.dates||{};h.dx=h.dx||{};h.u=h.u||0});o.diary=o.diary||{};o.dm=o.dm||{};o.del=o.del||{};o.mt=o.mt||0;o.om=o.om||0;return o};
@@ -112,38 +122,68 @@ const key=d=>d.getFullYear()+'-'+String(d.getMonth()+1).padStart(2,'0')+'-'+Stri
 const esc=s=>String(s).replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
 const today=()=>{const t=new Date();t.setHours(0,0,0,0);return t};
 
-// Mapa de calor: 53 semanas, lunes arriba. fn(k) devuelve la clase de cada celda.
+// <heat>
+// Mapa de calor: lunes arriba. YR=null -> últimos 12 meses; YR=año -> ese año.
 function heat(fn,edit,hid,color){
- const t=today(),tk=key(t),start=new Date(t);
- start.setDate(t.getDate()-((t.getDay()+6)%7)-52*7);
- let cells='',lab='',pm=start.getMonth();
- for(let w=0;w<53;w++){
+ const t=today(),tk=key(t),ty=t.getFullYear();
+ let from,to;
+ if(YR){from=new Date(YR,0,1);to=YR<ty?new Date(YR,11,31):t}
+ else{to=t;from=new Date(t);from.setDate(t.getDate()-364)}
+ const start=new Date(from);start.setDate(from.getDate()-((from.getDay()+6)%7));
+ const nw=Math.floor(Math.round((to-start)/864e5)/7)+1,lo=YR?from:start;
+ let cells='',lab='',pm=YR?-1:start.getMonth();
+ for(let w=0;w<nw;w++){
   const m=new Date(start);m.setDate(start.getDate()+w*7);
-  if(m.getMonth()!==pm){pm=m.getMonth();lab+=`<span style="grid-column:${w+1}">${MES[pm]}</span>`}
+  const fv=m<lo?lo:m;
+  if(fv.getMonth()!==pm){pm=fv.getMonth();lab+=`<span style="grid-column:${w+1}">${MES[pm]}</span>`}
   for(let d=0;d<7;d++){
    const x=new Date(start);x.setDate(start.getDate()+w*7+d);
-   if(x>t){cells+='<i class="c f"></i>';continue}
+   if(x>to||x<lo){cells+='<i class="c f"></i>';continue}
    const k=key(x);
    cells+=`<i class="c ${fn(k)}${k===tk?' t':''}" title="${k}"${edit?` data-d="${k}" data-h="${hid}"`:''}></i>`;
   }
  }
  return`<div class="hw"><div class="hi"${color?` style="--c:${color}"`:''}><div class="ml">${lab}</div><div class="bd"><div class="dl">${DIAS.map(d=>`<span>${d}</span>`).join('')}</div><div class="cells">${cells}</div></div></div></div>`;
 }
+// </heat>
+// <stats>
+const dayn=k=>{const[y,m,d]=k.split('-');return Date.UTC(y,m-1,d)/864e5};
+function stats(h){
+ const ks=Object.keys(h.dates).sort(),t=today(),tk=key(t);
+ let best=0,run=0,prev=null;
+ ks.forEach(k=>{const n=dayn(k);run=(prev!==null&&n-prev===1)?run+1:1;prev=n;if(run>best)best=run});
+ const d=new Date(t);if(!h.dates[key(d)])d.setDate(d.getDate()-1);
+ let cur=0;while(h.dates[key(d)]){cur++;d.setDate(d.getDate()-1)}
+ const mp=tk.slice(0,7),mo=ks.filter(k=>k.startsWith(mp)).length;
+ return`<b>${cur}</b> ${cur===1?'día':'días'} de racha · mejor <b>${best}</b> · este mes <b>${mo}</b>/${t.getDate()} · total <b>${ks.length}</b>`;
+}
+// </stats>
+function yrsel(){
+ const ty=new Date().getFullYear(),my=Math.min(ty,...S.habits.map(h=>+h.created.slice(0,4)).filter(Boolean));
+ let o='<option value="">Últimos 12 meses</option>';
+ for(let y=ty;y>=my;y--)o+=`<option value="${y}"${YR===y?' selected':''}>${y}</option>`;
+ return`<select class="btn" id="yr" aria-label="Año">${o}</select>`;
+}
+function applyTheme(){
+ document.documentElement.dataset.theme=S.theme;
+ const m=$('meta[name=theme-color]');if(m)m.content=S.theme==='dark'?'#12151c':'#ffffff';
+}
+
 // Cumplimiento del día = hábitos hechos / hábitos que ya existían ese día
 function pct(k){let a=0,d=0;for(const h of S.habits)if(h.created<=k){a++;if(h.dates[k])d++}return a?d/a:0}
 const lvl=p=>p===0?'':p<=.25?'l1':p<=.5?'l2':p<=.75?'l3':'l4';
 
 function card(h,edit){
  const done=!!h.dates[key(today())];
- const ctl=edit?`<div class="ic">${REORD?'<button class="ib" data-a="up">↑</button><button class="ib" data-a="dn">↓</button>':''}<details class="dd"><summary>⋮</summary><div><button data-a="ren">Renombrar</button><button data-a="del">Eliminar</button></div></details></div>`:'';
- return`<section class="card" data-id="${h.id}"><div class="ch"><h2>${esc(h.name)}</h2>${ctl}</div>${heat(k=>h.dates[k]?'on':'',edit,h.id,h.color)}${edit?`<div class="lt"><button class="btn${done?' ok':''}" data-a="today">${done?'✓ Hecho hoy':'Registrar hoy →'}</button></div>`:''}</section>`;
+ const ctl=edit?`<div class="ic">${REORD?'<button class="ib" data-a="up">↑</button><button class="ib" data-a="dn">↓</button>':''}<details class="dd"><summary>⋮</summary><div><button data-a="ren">Renombrar</button><button data-a="col">Cambiar color</button><button data-a="del">Eliminar</button></div></details></div>`:'';
+ return`<section class="card" data-id="${h.id}"><div class="ch"><h2>${esc(h.name)}</h2>${ctl}</div>${heat(k=>h.dates[k]?'on':'',edit,h.id,h.color)}${edit?`<div class="lt"><div class="st">${stats(h)}</div><button class="btn${done?' ok':''}" data-a="today">${done?'✓ Hecho hoy':'Registrar hoy →'}</button></div>`:''}</section>`;
 }
 function list(){
  const q=Q.toLowerCase(),hs=S.habits.filter(h=>h.name.toLowerCase().includes(q));
  $('#list').innerHTML=hs.length?hs.map(h=>card(h,true)).join(''):`<div class="empty">${S.habits.length?'Ningún hábito coincide con la búsqueda.':'Aún no tienes hábitos. Crea el primero con “Crear hábito”.'}</div>`;
  scrollHM();
 }
-function scrollHM(){document.querySelectorAll('.hw').forEach(e=>e.scrollLeft=e.scrollWidth)}
+function scrollHM(){document.querySelectorAll('.hw').forEach(e=>e.scrollLeft=(YR&&YR<new Date().getFullYear())?0:e.scrollWidth)}
 
 function perfil(){
  const t=today();let days=0,pts=0,pts2=[];
@@ -153,7 +193,7 @@ function perfil(){
  return`<div class="ban">Esta es tu página de perfil. Tus datos se guardan en este dispositivo.</div>
  <div class="ph"><div class="av">${esc((S.user||'U')[0].toUpperCase())}</div><div class="pi"><h1>${esc(S.user)}</h1><div>${days} días registrados</div><div>${pts} puntos</div></div>
  <div class="sc">Puntaje diario (1 año):<svg viewBox="0 0 364 60" preserveAspectRatio="none"><polyline points="${poly}" fill="none" stroke="var(--g)" stroke-width="1.5" vector-effect="non-scaling-stroke"/></svg></div></div>
- <section class="card"><div class="ch"><h2>Cumplimiento diario</h2></div>${heat(k=>lvl(pct(k)),false)}</section>`+S.habits.map(h=>card(h,false)).join('');
+ <section class="card"><div class="ch"><h2>Cumplimiento diario</h2>${yrsel()}</div>${heat(k=>lvl(pct(k)),false)}</section>`+S.habits.map(h=>card(h,false)).join('');
 }
 function ajustes(){
  return`<div class="set"><h2>Apariencia</h2><label for="th">Modo claro / oscuro:</label>
@@ -186,13 +226,13 @@ function ents(){
 }
 function view(){
  const v=location.hash.slice(1)||'habitos';
- document.documentElement.dataset.theme=S.theme;
+ applyTheme();
  document.querySelectorAll('nav a').forEach(a=>a.classList.toggle('on',a.dataset.v===v));
  const a=$('#app');
  if(v==='perfil'){a.innerHTML=perfil();scrollHM()}
  else if(v==='diario'){a.innerHTML=diario();ents()}
  else if(v==='ajustes'){a.innerHTML=ajustes();$('#th').value=S.theme;$('#dst').textContent=dst()}
- else{a.innerHTML=`<div class="tb"><label class="sb"><span>⌕</span><input id="q" placeholder="Buscar hábitos" value="${esc(Q)}"><kbd>Ctrl</kbd><kbd>K</kbd></label><button class="btn" data-a="reord">Reordenar ⇅</button><button class="btn" data-a="new">Crear hábito ▾</button></div><div id="list"></div>`;list()}
+ else{a.innerHTML=`<div class="tb"><label class="sb"><span>⌕</span><input id="q" placeholder="Buscar hábitos" value="${esc(Q)}"><kbd>Ctrl</kbd><kbd>K</kbd></label>${yrsel()}<button class="btn" data-a="reord">Reordenar ⇅</button><button class="btn" data-a="new">Crear hábito ▾</button></div><div id="list"></div>`;list()}
 }
 const find=id=>S.habits.find(h=>h.id===id);
 function toggle(id,k){const h=find(id),t=Date.now();if(h.dates[k]){delete h.dates[k];h.dx[k]=t}else{h.dates[k]=t;delete h.dx[k];if(k<h.created)h.created=k}save();list()}
@@ -209,6 +249,7 @@ $('#app').addEventListener('click',e=>{
  else if(a==='imp')$('#fi').click();
  else if(a==='conn')sync(true);
  else if(a==='disc')desconectar();
+ else if(a==='col'){const c=$('#cc');c.value=h.color||'#19c39a';c.dataset.h=id;c.click()}
  else if(a==='ren'){const n=prompt('Nuevo nombre del hábito',h.name);if(n&&n.trim()){h.name=n.trim().slice(0,60);h.u=Date.now();save();list()}}
  else if(a==='del'){if(confirm(`¿Eliminar “${h.name}” y todo su historial?`)){S.del[h.id]=Date.now();S.habits=S.habits.filter(x=>x!==h);save();list()}}
  else if(a==='up'||a==='dn'){const i=S.habits.indexOf(h),j=a==='up'?i-1:i+1;if(S.habits[j]){[S.habits[i],S.habits[j]]=[S.habits[j],S.habits[i]];S.om=Date.now();save();list()}}
@@ -219,15 +260,17 @@ $('#app').addEventListener('input',e=>{
  if(e.target.id==='tx'){const v=e.target.value;if(v.trim())S.diary[DK]=v;else delete S.diary[DK];S.dm[DK]=Date.now();save();ents();$('#st').textContent='Guardado'}
 });
 $('#app').addEventListener('change',e=>{
- if(e.target.id==='th'){S.theme=e.target.value;save();document.documentElement.dataset.theme=S.theme}
+ if(e.target.id==='th'){S.theme=e.target.value;save();applyTheme()}
  if(e.target.id==='dt'&&e.target.value){DK=e.target.value;view()}
  if(e.target.id==='fi')importar(e.target);
+ if(e.target.id==='yr'){YR=e.target.value?+e.target.value:null;view()}
 });
 $('#frm').addEventListener('submit',()=>{
  const n=$('#nm').value.trim();if(!n)return;
  S.habits.push({id:Date.now().toString(36)+Math.random().toString(36).slice(2,6),name:n,color:$('#col').value,created:key(today()),u:Date.now(),dates:{},dx:{}});save();list();
 });
 $('#cx').onclick=()=>$('#dlg').close();
+$('#cc').addEventListener('change',e=>{const h=find(e.target.dataset.h);if(!h)return;h.color=e.target.value;h.u=Date.now();save();list()});
 addEventListener('keydown',e=>{if((e.ctrlKey||e.metaKey)&&e.key.toLowerCase()==='k'){const q=$('#q');if(q){e.preventDefault();q.focus()}}});
 // ================= Respaldo JSON y sincronización con Google Drive =================
 // PEGA AQUÍ tu ID de cliente de Google (termina en .apps.googleusercontent.com)
@@ -346,6 +389,7 @@ if(window.google&&google.accounts)gsiReady();
 document.addEventListener('visibilitychange',()=>{if(!document.hidden&&conn()&&Date.now()-lastSync>20000)sync(false)});
 
 addEventListener('hashchange',view);
+if('serviceWorker' in navigator)addEventListener('load',()=>navigator.serviceWorker.register('sw.js').catch(()=>{}));
 view();
 </script>
 </body>
