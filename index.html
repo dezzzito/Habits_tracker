@@ -7,6 +7,7 @@
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Manrope:wght@400;500;600;700&display=swap" rel="stylesheet">
+<script src="https://accounts.google.com/gsi/client" async defer onload="window.gsiReady&&gsiReady()"></script>
 <style>
 :root{--bg:#fff;--fg:#2d3748;--mut:#8792a8;--bd:#e2e6ee;--card:#fff;--cell:#eef0f6;--g:#19c39a;--grid:rgba(0,0,0,.035);--warn:#fffbe6;--warnb:#f0e2a0;--red:#f0616d}
 [data-theme=dark]{--bg:#12151c;--fg:#e6e9f0;--mut:#7e889c;--bd:#2a3040;--card:#171b24;--cell:#222836;--grid:rgba(255,255,255,.03);--warn:#2a2614;--warnb:#4d4420}
@@ -75,6 +76,7 @@ dialog input[type=text]{width:100%;padding:11px 12px;background:var(--bg);border
 dialog input[type=color]{width:48px;height:36px;border:0;background:none;padding:0}
 .row{display:flex;justify-content:space-between;align-items:center;gap:12px;margin-top:8px}
 footer{text-align:center;color:var(--mut);padding:30px 0 50px}
+#ss{font-size:13px;margin-top:6px;min-height:18px}
 @media(max-width:600px){.card{padding:18px}nav{gap:18px}.ch h2{font-size:20px}}
 </style>
 </head>
@@ -86,7 +88,7 @@ footer{text-align:center;color:var(--mut);padding:30px 0 50px}
  <a href="#ajustes" data-v="ajustes"><svg viewBox="0 0 16 16"><path fill-rule="evenodd" d="M8 5.5a2.5 2.5 0 100 5 2.5 2.5 0 000-5zM7 0h2l.4 1.9 1.5.6 1.6-1.1 1.4 1.4-1.1 1.6.6 1.5L16 7v2l-1.9.4-.6 1.5 1.1 1.6-1.4 1.4-1.6-1.1-1.5.6L9 16H7l-.4-1.9-1.5-.6-1.6 1.1-1.4-1.4 1.1-1.6-.6-1.5L0 9V7l1.9-.4.6-1.5-1.1-1.6L2.8 2.1l1.6 1.1 1.5-.6z"/></svg>Ajustes</a>
 </nav>
 <main id="app"></main>
-<footer>Hecho con <span style="color:#f472b6">♥</span></footer>
+<footer>Hecho con <span style="color:#f472b6">♥</span><div id="ss"></div></footer>
 <dialog id="dlg">
  <form method="dialog" id="frm">
   <label for="nm">Nombre del hábito</label>
@@ -102,8 +104,10 @@ const DIAS=['Lun','','Mié','','Vie','',''];
 let Q='',REORD=false;
 let S=(()=>{try{const d=JSON.parse(localStorage.getItem(K));if(d&&d.habits)return d}catch(e){}
  return{habits:[],user:'Usuario',theme:matchMedia('(prefers-color-scheme: dark)').matches?'dark':'light'}})();
-S.diary=S.diary||{};
-const save=()=>{try{localStorage.setItem(K,JSON.stringify(S))}catch(e){}};
+const norm=o=>{o.habits=o.habits||[];o.habits.forEach(h=>{h.dates=h.dates||{};h.dx=h.dx||{};h.u=h.u||0});o.diary=o.diary||{};o.dm=o.dm||{};o.del=o.del||{};o.mt=o.mt||0;o.om=o.om||0;return o};
+norm(S);
+const persist=()=>{try{localStorage.setItem(K,JSON.stringify(S))}catch(e){}};
+const save=()=>{S.mt=Date.now();persist();push()};
 const key=d=>d.getFullYear()+'-'+String(d.getMonth()+1).padStart(2,'0')+'-'+String(d.getDate()).padStart(2,'0');
 const esc=s=>String(s).replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
 const today=()=>{const t=new Date();t.setHours(0,0,0,0);return t};
@@ -155,7 +159,11 @@ function ajustes(){
  return`<div class="set"><h2>Apariencia</h2><label for="th">Modo claro / oscuro:</label>
  <select id="th"><option value="light">☀ Claro</option><option value="dark">☾ Oscuro</option></select>
  <h2>Detalles del perfil</h2><label for="un">Nombre de usuario:</label><input id="un" maxlength="30" value="${esc(S.user)}">
- <p>Tus hábitos se guardan solo en este navegador.</p></div>`;
+ <h2>Respaldo</h2><p>Descarga una copia de tus datos o restáurala desde un archivo. Al importar, los datos se combinan con los actuales y no se borra nada.</p>
+ <div class="row" style="justify-content:flex-start"><button class="btn" data-a="exp">Exportar JSON</button><button class="btn" data-a="imp">Importar JSON</button></div><input type="file" id="fi" accept=".json,application/json" hidden>
+ <h2>Google Drive</h2><p id="dst"></p>
+ <div class="row" style="justify-content:flex-start"><button class="btn" data-a="conn">${conn()?'Sincronizar ahora':'Conectar con Google Drive'}</button>${conn()?'<button class="btn" data-a="disc">Desconectar</button>':''}</div>
+ <p>Si conectas Drive, tus datos también se guardan en una carpeta oculta de tu cuenta de Google que solo esta app puede leer.</p></div>`;
 }
 
 let DK=key(today());
@@ -183,11 +191,11 @@ function view(){
  const a=$('#app');
  if(v==='perfil'){a.innerHTML=perfil();scrollHM()}
  else if(v==='diario'){a.innerHTML=diario();ents()}
- else if(v==='ajustes'){a.innerHTML=ajustes();$('#th').value=S.theme}
+ else if(v==='ajustes'){a.innerHTML=ajustes();$('#th').value=S.theme;$('#dst').textContent=dst()}
  else{a.innerHTML=`<div class="tb"><label class="sb"><span>⌕</span><input id="q" placeholder="Buscar hábitos" value="${esc(Q)}"><kbd>Ctrl</kbd><kbd>K</kbd></label><button class="btn" data-a="reord">Reordenar ⇅</button><button class="btn" data-a="new">Crear hábito ▾</button></div><div id="list"></div>`;list()}
 }
 const find=id=>S.habits.find(h=>h.id===id);
-function toggle(id,k){const h=find(id);if(h.dates[k])delete h.dates[k];else{h.dates[k]=1;if(k<h.created)h.created=k}save();list()}
+function toggle(id,k){const h=find(id),t=Date.now();if(h.dates[k]){delete h.dates[k];h.dx[k]=t}else{h.dates[k]=t;delete h.dx[k];if(k<h.created)h.created=k}save();list()}
 
 $('#app').addEventListener('click',e=>{
  const en=e.target.closest('.ent');if(en){DK=en.dataset.k;view();return scrollTo(0,0)}
@@ -197,25 +205,146 @@ $('#app').addEventListener('click',e=>{
  if(a==='new'){$('#nm').value='';$('#dlg').showModal();$('#nm').focus()}
  else if(a==='reord'){REORD=!REORD;list()}
  else if(a==='today')toggle(id,key(today()));
- else if(a==='ren'){const n=prompt('Nuevo nombre del hábito',h.name);if(n&&n.trim()){h.name=n.trim().slice(0,60);save();list()}}
- else if(a==='del'){if(confirm(`¿Eliminar “${h.name}” y todo su historial?`)){S.habits=S.habits.filter(x=>x!==h);save();list()}}
- else if(a==='up'||a==='dn'){const i=S.habits.indexOf(h),j=a==='up'?i-1:i+1;if(S.habits[j]){[S.habits[i],S.habits[j]]=[S.habits[j],S.habits[i]];save();list()}}
+ else if(a==='exp')exportar();
+ else if(a==='imp')$('#fi').click();
+ else if(a==='conn')sync(true);
+ else if(a==='disc')desconectar();
+ else if(a==='ren'){const n=prompt('Nuevo nombre del hábito',h.name);if(n&&n.trim()){h.name=n.trim().slice(0,60);h.u=Date.now();save();list()}}
+ else if(a==='del'){if(confirm(`¿Eliminar “${h.name}” y todo su historial?`)){S.del[h.id]=Date.now();S.habits=S.habits.filter(x=>x!==h);save();list()}}
+ else if(a==='up'||a==='dn'){const i=S.habits.indexOf(h),j=a==='up'?i-1:i+1;if(S.habits[j]){[S.habits[i],S.habits[j]]=[S.habits[j],S.habits[i]];S.om=Date.now();save();list()}}
 });
 $('#app').addEventListener('input',e=>{
  if(e.target.id==='q'){Q=e.target.value;list()}
  if(e.target.id==='un'){S.user=e.target.value.trim()||'Usuario';save()}
- if(e.target.id==='tx'){const v=e.target.value;if(v.trim())S.diary[DK]=v;else delete S.diary[DK];save();ents();$('#st').textContent='Guardado'}
+ if(e.target.id==='tx'){const v=e.target.value;if(v.trim())S.diary[DK]=v;else delete S.diary[DK];S.dm[DK]=Date.now();save();ents();$('#st').textContent='Guardado'}
 });
 $('#app').addEventListener('change',e=>{
  if(e.target.id==='th'){S.theme=e.target.value;save();document.documentElement.dataset.theme=S.theme}
  if(e.target.id==='dt'&&e.target.value){DK=e.target.value;view()}
+ if(e.target.id==='fi')importar(e.target);
 });
 $('#frm').addEventListener('submit',()=>{
  const n=$('#nm').value.trim();if(!n)return;
- S.habits.push({id:Date.now().toString(36),name:n,color:$('#col').value,created:key(today()),dates:{}});save();list();
+ S.habits.push({id:Date.now().toString(36)+Math.random().toString(36).slice(2,6),name:n,color:$('#col').value,created:key(today()),u:Date.now(),dates:{},dx:{}});save();list();
 });
 $('#cx').onclick=()=>$('#dlg').close();
 addEventListener('keydown',e=>{if((e.ctrlKey||e.metaKey)&&e.key.toLowerCase()==='k'){const q=$('#q');if(q){e.preventDefault();q.focus()}}});
+// ================= Respaldo JSON y sincronización con Google Drive =================
+// PEGA AQUÍ tu ID de cliente de Google (termina en .apps.googleusercontent.com)
+const CLIENT_ID='36276957250-2ch5vncvca8for09k1cijntthai2jb7g.apps.googleusercontent.com';
+const SCOPE='https://www.googleapis.com/auth/drive.appdata',FN='habitos.json',GAPI='https://www.googleapis.com/';
+let TOK=null,TEXP=0,TC=null,pend=null,busy=false,again=false,timer=null,LAST='',lastSync=0;
+function conn(){return localStorage.getItem('habitos_drive')==='1'}
+function dst(){return!CLIENT_ID?'Falta pegar el ID de cliente de Google en el archivo index.html.':(conn()?'Conectado.':'No conectado.')+(LAST?' '+LAST:'')}
+function setSS(t,err){LAST=t;const e=$('#ss');if(e){e.textContent=(conn()||err)?t:'';e.style.color=err?'var(--red)':''}const d=$('#dst');if(d)d.textContent=dst()}
+
+// <merge>
+const mx=(a,b)=>Math.max(+a||0,+b||0);
+const valid=o=>!!o&&typeof o==='object'&&Array.isArray(o.habits);
+// Combina dos copias sin perder nada: lo más reciente gana en cada día de cada hábito y en cada entrada del diario.
+function merge(A,B){
+ const nw=(A.mt||0)>=(B.mt||0)?A:B,no=(A.om||0)>=(B.om||0)?A:B,ot=no===A?B:A;
+ const del={...B.del,...A.del},g=(X,id)=>X.habits.find(h=>h.id===id);
+ const ids=[...no.habits,...ot.habits.filter(h=>!g(no,h.id))].map(h=>h.id).filter(id=>!del[id]);
+ const habits=ids.map(id=>{
+  const a=g(A,id),b=g(B,id);
+  if(!a||!b)return JSON.parse(JSON.stringify(a||b));
+  const bs=(a.u||0)>=(b.u||0)?a:b,dates={},dx={};
+  new Set([...Object.keys(a.dates),...Object.keys(b.dates),...Object.keys(a.dx),...Object.keys(b.dx)]).forEach(k=>{
+   const on=mx(a.dates[k],b.dates[k]),off=mx(a.dx[k],b.dx[k]);
+   if(on>off)dates[k]=on;else if(off)dx[k]=off;
+  });
+  return{id,name:bs.name,color:bs.color,u:mx(a.u,b.u),created:a.created<b.created?a.created:b.created,dates,dx};
+ });
+ const diary={},dm={};
+ new Set([...Object.keys(A.diary),...Object.keys(B.diary),...Object.keys(A.dm),...Object.keys(B.dm)]).forEach(k=>{
+  const ta=A.dm[k]||0,tb=B.dm[k]||0,w=ta>=tb?A:B,o=w===A?B:A,t=Math.max(ta,tb),x=w.diary[k]||(t?'':(o.diary[k]||''));
+  if(t)dm[k]=t;if(x)diary[k]=x;
+ });
+ return{habits,diary,dm,del,user:nw.user,theme:A.theme,mt:mx(A.mt,B.mt),om:mx(A.om,B.om)};
+}
+// </merge>
+
+function exportar(){
+ const b=new Blob([JSON.stringify(S,null,1)],{type:'application/json'}),a=document.createElement('a');
+ a.href=URL.createObjectURL(b);a.download='habitos-respaldo-'+key(today())+'.json';a.click();
+ setTimeout(()=>URL.revokeObjectURL(a.href),1000);
+}
+function importar(inp){
+ const f=inp.files[0];if(!f)return;
+ f.text().then(t=>{
+  let j;try{j=JSON.parse(t)}catch(e){return alert('El archivo no es un JSON válido.')}
+  if(!valid(j))return alert('El archivo no parece un respaldo de esta app.');
+  if(!confirm('Se combinará con tus datos actuales; no se borra nada. ¿Continuar?'))return;
+  S=merge(S,norm(j));save();view();
+ });
+ inp.value='';
+}
+
+function tc(){return TC||(TC=google.accounts.oauth2.initTokenClient({client_id:CLIENT_ID,scope:SCOPE,
+ callback:r=>{const p=pend;pend=null;if(!p)return;if(r.error)p.rej(r);else{TOK=r.access_token;TEXP=Date.now()+(r.expires_in||3600)*1000;p.res(TOK)}},
+ error_callback:e=>{const p=pend;pend=null;if(p)p.rej(e)}}))}
+function token(inter){
+ return new Promise((res,rej)=>{
+  if(TOK&&Date.now()<TEXP-60000)return res(TOK);
+  if(!window.google||!google.accounts)return rej({error:'offline'});
+  const p={res,rej};pend=p;
+  setTimeout(()=>{if(pend===p){pend=null;rej({error:'timeout'})}},inter?180000:10000);
+  tc().requestAccessToken({prompt:inter?'':'none'});
+ });
+}
+async function gf(url,o={}){
+ const r=await fetch(url,{...o,headers:{Authorization:'Bearer '+TOK,...(o.headers||{})}});
+ if(r.status===401){TOK=null;throw{error:'auth'}}
+ if(!r.ok)throw{error:'http',status:r.status};
+ return r;
+}
+function errMsg(e){
+ if(e instanceof TypeError)return'Sin conexión a internet.';
+ const c=e&&(e.error||e.type);
+ if(c==='offline')return'No se pudo cargar Google. Revisa tu conexión.';
+ if(c==='access_denied')return'Permiso denegado en Google.';
+ if(c==='http')return e.status===403?'Drive rechazó la petición: revisa que la API de Google Drive esté habilitada.':'Error de Drive ('+e.status+').';
+ return conn()?'Sesión de Google caducada: ve a Ajustes y pulsa “Sincronizar ahora”.':'No se completó la conexión con Google.';
+}
+// inter=true solo desde un clic (abre la ventana de Google); false = intento silencioso
+async function sync(inter){
+ if(!CLIENT_ID){setSS('Falta el ID de cliente de Google.',true);return}
+ if(busy){again=true;return}
+ busy=true;setSS('Sincronizando…');
+ try{
+  await token(inter);
+  const q=encodeURIComponent("name='"+FN+"' and trashed=false");
+  const l=await(await gf(GAPI+'drive/v3/files?spaces=appDataFolder&orderBy=createdTime&fields=files(id)&q='+q)).json();
+  const id=l.files&&l.files[0]&&l.files[0].id;
+  let R=null;
+  if(id){const j=await(await gf(GAPI+'drive/v3/files/'+id+'?alt=media')).json();if(valid(j))R=norm(j)}
+  const snap=JSON.stringify(S),M=R?merge(S,R):S,out=JSON.stringify(M);
+  if(!R||out!==JSON.stringify(R)){
+   if(id)await gf(GAPI+'upload/drive/v3/files/'+id+'?uploadType=media',{method:'PATCH',headers:{'Content-Type':'application/json'},body:out});
+   else{
+    const bd='hab'+Date.now();
+    await gf(GAPI+'upload/drive/v3/files?uploadType=multipart',{method:'POST',headers:{'Content-Type':'multipart/related; boundary='+bd},
+     body:'--'+bd+'\r\nContent-Type: application/json; charset=UTF-8\r\n\r\n'+JSON.stringify({name:FN,parents:['appDataFolder']})+'\r\n--'+bd+'\r\nContent-Type: application/json\r\n\r\n'+out+'\r\n--'+bd+'--'});
+   }
+  }
+  if(JSON.stringify(S)!==snap)again=true;
+  else if(out!==snap){S=M;persist();if(!/INPUT|TEXTAREA/.test(document.activeElement.tagName))view()}
+  localStorage.setItem('habitos_drive','1');lastSync=Date.now();
+  setSS('Sincronizado ✓ '+new Date().toLocaleTimeString('es',{hour:'2-digit',minute:'2-digit'}));
+ }catch(e){setSS(errMsg(e),true)}
+ finally{busy=false;if(again){again=false;sync(false)}}
+}
+function push(){if(!conn()||!CLIENT_ID)return;clearTimeout(timer);timer=setTimeout(()=>sync(false),2500)}
+function desconectar(){
+ localStorage.removeItem('habitos_drive');
+ if(TOK&&window.google)try{google.accounts.oauth2.revoke(TOK)}catch(e){}
+ TOK=null;setSS('');view();
+}
+window.gsiReady=()=>{if(conn())sync(false)};
+if(window.google&&google.accounts)gsiReady();
+document.addEventListener('visibilitychange',()=>{if(!document.hidden&&conn()&&Date.now()-lastSync>20000)sync(false)});
+
 addEventListener('hashchange',view);
 view();
 </script>
