@@ -105,6 +105,12 @@ body.hb .set{background:color-mix(in srgb,var(--bg) 82%,transparent);backdrop-fi
 .set input[type=range]{padding:0;border:0;background:none;accent-color:var(--g)}
 .ban .x{position:absolute;top:8px;right:8px;background:none;border:0;cursor:pointer;color:var(--mut);font-size:16px;padding:4px 8px}.ban .x:hover{color:var(--fg)}
 .ban ul{margin:8px 0 0;padding-left:20px}.ban li{margin:4px 0}.ban kbd{background:var(--cell);padding:1px 5px;border-radius:4px;font-size:12px}
+.bgb{width:100%}
+.bgw{position:relative}
+.bgx{position:absolute;top:10px;right:10px;width:22px;height:22px;border-radius:50%;border:0;background:rgba(0,0,0,.6);color:#fff;cursor:pointer;font-size:11px;line-height:22px;padding:0}
+.sg .ch{margin-bottom:6px}.sg .ch h2{font-size:20px}
+.si{display:flex;justify-content:space-between;align-items:center;gap:12px;padding:12px 0;border-top:1px solid var(--bd)}
+.si .ic{flex-shrink:0}
 @media(max-width:600px){.card{padding:18px}nav{gap:18px}.ch h2{font-size:20px}}
 </style>
 </head>
@@ -134,7 +140,7 @@ const DIAS=['Lun','','Mié','','Vie','',''];
 let Q='',REORD=false,YR=null;
 let S=(()=>{try{const d=JSON.parse(localStorage.getItem(K));if(d&&d.habits)return d}catch(e){}
  return{habits:[],user:'Usuario',theme:matchMedia('(prefers-color-scheme: dark)').matches?'dark':'light'}})();
-const norm=o=>{o.habits=o.habits||[];o.habits.forEach(h=>{h.dates=h.dates||{};h.dx=h.dx||{};h.u=h.u||0});o.diary=o.diary||{};o.dm=o.dm||{};o.del=o.del||{};o.mt=o.mt||0;o.om=o.om||0;return o};
+const norm=o=>{o.habits=o.habits||[];o.habits.forEach(h=>{h.dates=h.dates||{};h.dx=h.dx||{};h.u=h.u||0});o.diary=o.diary||{};o.dm=o.dm||{};o.del=o.del||{};o.mt=o.mt||0;o.om=o.om||0;o.wp=o.wp||{};o.wpdel=o.wpdel||{};o.bg=(o.bg&&typeof o.bg==='object')?o.bg:{k:'grid',o:1,t:0};return o};
 norm(S);
 const persist=()=>{try{localStorage.setItem(K,JSON.stringify(S))}catch(e){}};
 const save=()=>{S.mt=Date.now();persist();push()};
@@ -201,7 +207,7 @@ function card(h,edit){
 function list(){
  const q=Q.toLowerCase(),hs=S.habits.filter(h=>h.name.toLowerCase().includes(q));
  $('#list').innerHTML=hs.length?hs.map(h=>card(h,true)).join(''):`<div class="empty">${S.habits.length?'Ningún hábito coincide con la búsqueda.':'Aún no tienes hábitos. Crea el primero con “Crear hábito”.'}</div>`;
- scrollHM();
+ scrollHM();sug();
 }
 function scrollHM(){document.querySelectorAll('.hw').forEach(e=>e.scrollLeft=(YR&&YR<new Date().getFullYear())?0:e.scrollWidth)}
 
@@ -237,7 +243,8 @@ const TIPS={
   <li>Pulsa <b>Crear hábito</b> para añadir uno con su nombre y su color.</li>
   <li>Toca <b>Registrar hoy</b> o cualquier cuadrito del mapa para marcar ese día como cumplido. Tócalo de nuevo para desmarcarlo. También puedes marcar días pasados.</li>
   <li>En el menú <b>⋮</b> de cada hábito puedes renombrarlo, cambiarle el color o eliminarlo.</li>
-  <li>Con el selector de años ves años anteriores, con <b>Reordenar</b> cambias el orden y con la búsqueda (<kbd>Ctrl</kbd> + <kbd>K</kbd>) filtras tus hábitos.</li></ul>`,
+  <li>Con el selector de años ves años anteriores, con <b>Reordenar</b> cambias el orden y con la búsqueda (<kbd>Ctrl</kbd> + <kbd>K</kbd>) filtras tus hábitos.</li>
+  <li>Al final de la lista verás ideas de hábitos nuevos según los que ya tienes. Tócalas para añadirlas.</li></ul>`,
  diario:()=>`<b>Cómo usar el “Diario”</b><ul>
   <li>Escribe una entrada por día; se guarda sola mientras escribes.</li>
   <li>Arriba ves qué hábitos cumpliste ese día. Cambia la fecha para escribir sobre otro día.</li>
@@ -247,60 +254,166 @@ const TIPS={
   <li>En “Cumplimiento diario”, cuanto más intenso es el verde, mayor es el porcentaje de hábitos que cumpliste ese día.</li>
   <li>${conn()?'Tus datos se guardan en este dispositivo y se sincronizan con tu cuenta de Google.':'Tus datos se guardan solo en este dispositivo. Conecta Google Drive en Ajustes para sincronizarlos con tus otros dispositivos.'}</li></ul>`,
  ajustes:()=>`<b>Cómo usar los “Ajustes”</b><ul>
-  <li>Elige modo claro u oscuro y cambia el fondo de la web.</li>
+  <li>Elige modo claro u oscuro y un fondo. Las imágenes que subas se guardan en tu Drive si lo conectas.</li>
   <li><b>Exportar JSON</b> descarga una copia de tus datos y <b>Importar JSON</b> la restaura sin borrar nada.</li>
   <li>Conecta <b>Google Drive</b> para sincronizar tus datos entre dispositivos. Si ves un aviso rojo debajo del pie de página, pulsa “Sincronizar ahora”.</li>
   <li>En el móvil puedes instalar la web desde el menú del navegador con “Añadir a pantalla de inicio”.</li></ul>`
 };
 const tip=id=>tipsOff().includes(id)?'':`<div class="ban"><button class="x" data-a="tipx" data-t="${id}" aria-label="Cerrar">✕</button>${TIPS[id]()}</div>`;
 
-// ===== Fondo de la web (solo en este dispositivo) =====
-const BGK='habitos_bg',BGI='habitos_bgimg';
+// ===== Fondo de la web: los fondos propios se guardan en el navegador (IndexedDB) y en Drive =====
 const PRE={grid:{n:'Cuadrícula',o:1},dots:{n:'Puntos',o:1},aurora:{n:'Aurora',o:.5},sunset:{n:'Atardecer',o:.5},ocean:{n:'Océano',o:.5},forest:{n:'Bosque',o:.5},solid:{n:'Liso',o:1}};
-const bgImg=()=>{try{return localStorage.getItem(BGI)||''}catch(e){return''}};
-let BG=(()=>{try{const b=JSON.parse(localStorage.getItem(BGK));if(b&&(PRE[b.k]||b.k==='img'))return{k:b.k,o:isFinite(+b.o)?Math.min(1,Math.max(0,+b.o)):1}}catch(e){}return{k:'grid',o:1}})();
-const saveBg=()=>{try{localStorage.setItem(BGK,JSON.stringify(BG))}catch(e){}};
-function applyBg(){
- const b=$('#bg'),img=BG.k==='img'?bgImg():'';
- if(BG.k==='img'&&!img)BG={k:'grid',o:1};
- b.className=BG.k;b.style.backgroundImage=img?`url("${img}")`:'';b.style.opacity=BG.o;
- document.body.classList.toggle('hb',!['grid','dots','solid'].includes(BG.k));
+const MAXWP=12;
+const nid=()=>Date.now().toString(36)+Math.random().toString(36).slice(2,6);
+let DBP=null;
+const idb=()=>DBP||(DBP=new Promise((res,rej)=>{try{const r=indexedDB.open('habitos_wp',1);r.onupgradeneeded=()=>r.result.createObjectStore('wp');r.onsuccess=()=>res(r.result);r.onerror=()=>{DBP=null;rej(r.error)}}catch(e){DBP=null;rej(e)}}));
+const idbop=(mode,fn)=>idb().then(d=>new Promise((res,rej)=>{const t=d.transaction('wp',mode),q=fn(t.objectStore('wp'));t.oncomplete=()=>res(q&&q.result);t.onerror=()=>rej(t.error);t.onabort=()=>rej(t.error)}));
+const wpPut=(id,bl)=>idbop('readwrite',s=>s.put(bl,id));
+const wpGet=id=>idbop('readonly',s=>s.get(id)).then(r=>r||null).catch(()=>null);
+const wpDel=id=>idbop('readwrite',s=>s.delete(id)).catch(()=>{});
+const wpKeys=()=>idbop('readonly',s=>s.getAllKeys()).then(r=>r||[]).catch(()=>[]);
+
+let BGURL='',BGTK=0;
+async function applyBg(){
+ const tk=++BGTK,b=$('#bg');let c=S.bg,img='';
+ if(c.k==='wp'){
+  const w=S.wp[c.id];
+  if(!w)c={k:'grid',o:1};
+  else{
+   const bl=await wpGet(c.id);
+   if(tk!==BGTK)return;
+   if(bl){if(BGURL)URL.revokeObjectURL(BGURL);BGURL=URL.createObjectURL(bl);img=BGURL}else img=w.th;
+  }
+ }
+ b.className=c.k==='wp'?'img':c.k;b.style.backgroundImage=img?`url("${img}")`:'';b.style.opacity=c.o;
+ document.body.classList.toggle('hb',!['grid','dots','solid'].includes(c.k));
 }
-function setBg(k){BG={k,o:k==='img'?.4:PRE[k].o};saveBg();applyBg();view()}
-function quitarFondo(){try{localStorage.removeItem(BGI)}catch(e){}if(BG.k==='img')BG={k:'grid',o:1};saveBg();applyBg();view()}
-// Reduce la imagen antes de guardarla para que quepa en el almacenamiento del navegador
-function subirFondo(inp){
- const f=inp.files[0];if(!f)return;
- const r=new FileReader();
- r.onload=()=>{
-  const im=new Image();
-  im.onload=()=>{
-   let ok=false;
-   for(const m of [1920,1400,1000]){
-    const sc=Math.min(1,m/Math.max(im.width,im.height)),c=document.createElement('canvas');
-    c.width=Math.max(1,Math.round(im.width*sc));c.height=Math.max(1,Math.round(im.height*sc));
-    c.getContext('2d').drawImage(im,0,0,c.width,c.height);
-    try{localStorage.setItem(BGI,c.toDataURL('image/jpeg',.8));ok=true;break}catch(e){}
-   }
-   if(!ok)return alert('La imagen es demasiado grande para guardarla en este dispositivo. Prueba con una más pequeña.');
-   BG={k:'img',o:.4};saveBg();applyBg();view();
-  };
-  im.onerror=()=>alert('No se pudo leer esa imagen.');
-  im.src=r.result;
- };
- r.readAsDataURL(f);inp.value='';
+function setBg(k){S.bg={k,o:PRE[k].o,t:Date.now()};save();applyBg();view()}
+function setWp(id){S.bg={k:'wp',id,o:S.bg.k==='wp'?S.bg.o:.4,t:Date.now()};save();applyBg();view()}
+async function borrarWp(id){
+ const w=S.wp[id];if(!w||!confirm('¿Eliminar la imagen “'+w.n+'”? También se borrará de tu Drive.'))return;
+ delete S.wp[id];S.wpdel[id]=Date.now();await wpDel(id);
+ if(S.bg.k==='wp'&&S.bg.id===id)S.bg={k:'grid',o:1,t:Date.now()};
+ save();applyBg();view();
+}
+const loadImg=src=>new Promise((res,rej)=>{const i=new Image();i.onload=()=>res(i);i.onerror=()=>rej(new Error('img'));i.src=src});
+const toBlob=(c,q)=>new Promise(r=>c.toBlob(r,'image/jpeg',q));
+// Reduce la imagen (máx. 1920 px, JPEG) y crea una miniatura para la lista
+async function procesar(f){
+ const url=URL.createObjectURL(f);
+ try{
+  const im=await loadImg(url);
+  const mk=m=>{const sc=Math.min(1,m/Math.max(im.width,im.height)),c=document.createElement('canvas');c.width=Math.max(1,Math.round(im.width*sc));c.height=Math.max(1,Math.round(im.height*sc));c.getContext('2d').drawImage(im,0,0,c.width,c.height);return c};
+  const blob=await toBlob(mk(1920),.82);if(!blob)throw new Error('blob');
+  return{blob,th:mk(200).toDataURL('image/jpeg',.7)};
+ }finally{URL.revokeObjectURL(url)}
+}
+async function subirFondo(inp){
+ const fs=[...inp.files];inp.value='';if(!fs.length)return;
+ let last=null;
+ for(const f of fs){
+  if(Object.keys(S.wp).length>=MAXWP){alert('Llegaste al límite de '+MAXWP+' imágenes. Elimina alguna para subir otras.');break}
+  try{
+   const{blob,th}=await procesar(f),id=nid();
+   await wpPut(id,blob);
+   S.wp[id]={n:(f.name||'').replace(/\.[^.]+$/,'').slice(0,24)||'Imagen',th,t:Date.now()};last=id;
+  }catch(e){alert('No se pudo usar la imagen “'+(f.name||'')+'”.')}
+ }
+ if(last){S.bg={k:'wp',id:last,o:.4,t:Date.now()};save();await applyBg();view()}
+}
+// Sube un fondo a la carpeta oculta de la app en Drive
+async function wpUpload(id,bl){
+ const bd='wp'+Date.now()+Math.random().toString(36).slice(2,6);
+ const body=new Blob(['--'+bd+'\r\nContent-Type: application/json; charset=UTF-8\r\n\r\n'+JSON.stringify({name:'wp-'+id+'.jpg',parents:['appDataFolder']})+'\r\n--'+bd+'\r\nContent-Type: image/jpeg\r\n\r\n',bl,'\r\n--'+bd+'--']);
+ const r=await gf(GAPI+'upload/drive/v3/files?uploadType=multipart&fields=id',{method:'POST',headers:{'Content-Type':'multipart/related; boundary='+bd},body});
+ return(await r.json()).id;
+}
+// Versiones anteriores guardaban una sola imagen en localStorage: se pasa a la nueva biblioteca
+async function migrarFondo(){
+ try{
+  const old=localStorage.getItem('habitos_bgimg'),cfg=JSON.parse(localStorage.getItem('habitos_bg')||'null');
+  if(!old&&!cfg)return;
+  const o=cfg&&isFinite(+cfg.o)?Math.min(1,Math.max(0,+cfg.o)):null;
+  if(old){
+   try{
+    const{blob,th}=await procesar(await(await fetch(old)).blob()),id=nid();
+    await wpPut(id,blob);S.wp[id]={n:'Mi imagen',th,t:Date.now()};
+    if(!S.bg.t&&cfg&&cfg.k==='img')S.bg={k:'wp',id,o:o===null?.4:o,t:1};
+   }catch(e){}
+  }else if(!S.bg.t&&cfg&&PRE[cfg.k])S.bg={k:cfg.k,o:o===null?PRE[cfg.k].o:o,t:1};
+  localStorage.removeItem('habitos_bgimg');localStorage.removeItem('habitos_bg');
+  save();await applyBg();
+ }catch(e){}
 }
 function bgHtml(){
- const img=bgImg();
- const tiles=Object.entries(PRE).map(([k,p])=>`<button class="bgb${BG.k===k?' sel':''}" data-a="bg" data-k="${k}"><span class="pv ${k}"></span>${p.n}</button>`).join('')
-  +(img?`<button class="bgb${BG.k==='img'?' sel':''}" data-a="bg" data-k="img"><span class="pv" style="background:url('${img}') center/cover"></span>Mi imagen</button>`:'');
+ const wps=Object.entries(S.wp).sort((a,b)=>a[1].t-b[1].t);
+ const sel=(k,id)=>S.bg.k===k&&(k!=='wp'||S.bg.id===id)?' sel':'';
+ const tiles=Object.entries(PRE).map(([k,p])=>`<button class="bgb${sel(k)}" data-a="bg" data-k="${k}"><span class="pv ${k}"></span>${p.n}</button>`).join('')
+  +wps.map(([id,w])=>`<div class="bgw"><button class="bgb${sel('wp',id)}" data-a="wp" data-id="${id}"><span class="pv" style="background:url('${w.th}') center/cover"></span>${esc(w.n)}</button><button class="bgx" data-a="wpdel" data-id="${id}" title="Eliminar" aria-label="Eliminar">✕</button></div>`).join('');
  return`<h2>Fondo</h2><div class="bgs">${tiles}</div>
- <label for="bgo">Opacidad del fondo: <b id="bgov">${Math.round(BG.o*100)}%</b></label>
- <input type="range" id="bgo" min="0" max="100" value="${Math.round(BG.o*100)}">
- <div class="row" style="justify-content:flex-start;margin-top:14px"><button class="btn" data-a="bgup">Subir mi imagen</button>${img?'<button class="btn" data-a="bgrm">Quitar mi imagen</button>':''}</div><input type="file" id="bgf" accept="image/*" hidden>
- <p>Las imágenes que subas se guardan solo en este dispositivo y no se sincronizan.</p>`;
+ <label for="bgo">Opacidad del fondo: <b id="bgov">${Math.round(S.bg.o*100)}%</b></label>
+ <input type="range" id="bgo" min="0" max="100" value="${Math.round(S.bg.o*100)}">
+ <div class="row" style="justify-content:flex-start;margin-top:14px"><button class="btn" data-a="bgup">Subir imágenes</button></div><input type="file" id="bgf" accept="image/*" multiple hidden>
+ <p>${conn()?'Tus imágenes se guardan en tu cuenta de Google Drive y aparecen en todos tus dispositivos.':'Tus imágenes se guardan en este dispositivo. Conecta Google Drive para tenerlas en todos tus dispositivos.'} Puedes guardar hasta ${MAXWP}.</p>`;
 }
-applyBg();
+applyBg();migrarFondo();
+
+// <sug>
+const nz=s=>String(s).normalize('NFD').replace(/[\u0300-\u036f]/g,'').toLowerCase().trim();
+// Catálogo de ideas. k: palabras que reconocen la categoría en el nombre de tus hábitos · h: hábitos que se pueden sugerir · r: categorías relacionadas (peso 1 a 3)
+const CAT={
+ lectura:{k:/\b(lee|leer|leo|leyendo|leido|libros?|read|reading|books?)\b|lectur|audiolib|novela/,h:['Leer 20 minutos','Leer 10 páginas antes de dormir','Escuchar un audiolibro o podcast'],r:{escritura:3,estudio:2,idiomas:1,creatividad:1,meditacion:1}},
+ escritura:{k:/escrib|escritur|redact|\b(write|writing|journal|journaling|blog|diario)\b/,h:['Escribir 10 minutos','Escribir en un diario','Anotar tres ideas del día'],r:{lectura:3,gratitud:2,creatividad:2,estudio:1}},
+ ejercicio:{k:/ejercicio|workout|\bgym\b|gimnasio|entren|pesas|fuerza|cardio|correr|\brun(ning)?\b|trotar|flexion|abdominal|crossfit|calistenia|fitness|sentadilla/,h:['Hacer ejercicio 30 minutos','Entrenar fuerza (pesas o calistenia)','Hacer 10 000 pasos'],r:{deporte:3,estiramiento:2,sueno:2,hidratacion:2,alimentacion:2,naturaleza:2,meditacion:1}},
+ deporte:{k:/futbol|futsal|basket|baloncesto|voley|natacion|nadar|swim|tenis|boxeo|\bbox\b|karate|judo|taekwondo|jiu|muay|\bmma\b|aikido|kung|marcial|ciclismo|bici|bicicleta|cycling|deporte|sport|escalada|surf/,h:['Practicar un deporte (fútbol, vóley, natación…)','Entrenar artes marciales (karate, judo, boxeo…)','Salir en bici'],r:{ejercicio:2,estiramiento:2,alimentacion:2,sueno:2,hidratacion:1,social:1}},
+ estiramiento:{k:/estir|stretch|yoga|movilidad|pilates|flexibilidad/,h:['Estirar 10 minutos','Hacer yoga','Hacer movilidad al despertar'],r:{ejercicio:2,meditacion:2,sueno:1,naturaleza:1}},
+ meditacion:{k:/medit|mindful|respiracion|respirar|relaj|\bcalma/,h:['Meditar 10 minutos','Respiración consciente 5 minutos'],r:{sueno:2,gratitud:2,estiramiento:2,escritura:1,naturaleza:1,pantallas:1}},
+ sueno:{k:/dorm|\bsleep|acost|despert|madrug|levantar|\bwake|siesta|\bsueno\b/,h:['Dormir 7 a 8 horas','Acostarte a la misma hora','Despertar a la misma hora'],r:{meditacion:2,pantallas:3,lectura:2,ejercicio:1,hidratacion:1}},
+ hidratacion:{k:/\bagua\b|water|hidrat|beber/,h:['Beber 2 litros de agua','Tomar un vaso de agua al despertar'],r:{alimentacion:2,ejercicio:1,sueno:1}},
+ alimentacion:{k:/comer|comida|dieta|fruta|verdura|ensalada|cocin|desayun|ayuno|azucar|vitamina|snack|\bmeal|\bdiet\b|nutri|alimenta|proteina/,h:['Comer una fruta o verdura','Cocinar en casa','No tomar bebidas azucaradas'],r:{hidratacion:2,ejercicio:2,sueno:1,cuidado:1}},
+ estudio:{k:/estudi|\bstudy|tarea|curso|clase|repas|examen|universidad|tesis|investig|apunte|matemat/,h:['Estudiar 1 hora sin distracciones','Repasar tus apuntes del día','Resolver 5 problemas'],r:{enfoque:3,lectura:2,idiomas:2,organizacion:2,sueno:1,tecnologia:1}},
+ idiomas:{k:/ingles|english|idioma|duolingo|aleman|frances|japones|italiano|portugues|coreano|chino|vocabulario|language|german|french/,h:['Practicar un idioma 15 minutos','Aprender 5 palabras nuevas','Ver un video o podcast en otro idioma'],r:{lectura:2,estudio:1,creatividad:1,social:1}},
+ enfoque:{k:/pomodoro|enfoque|focus|concentr|deep work|trabajo profundo|productiv/,h:['Hacer una sesión de trabajo profundo','Definir las 3 tareas más importantes del día','Usar la técnica Pomodoro'],r:{organizacion:2,pantallas:2,estudio:2,meditacion:1,sueno:1}},
+ organizacion:{k:/ordenar|\borden\b|limpiar|limpieza|\bclean|\btidy|tender|planific|agenda|organiz|\bplan\b|lista de tareas|\btodo\b/,h:['Tender la cama','Ordenar tu espacio 10 minutos','Planificar el día siguiente'],r:{enfoque:2,meditacion:1,sueno:1,finanzas:1}},
+ pantallas:{k:/celular|redes sociales|tiktok|instagram|scroll|pantalla|screen|\bphone|youtube|digital|detox|facebook/,h:['No usar el celular la primera hora del día','Limitar redes sociales a 30 minutos','Apagar pantallas 1 hora antes de dormir'],r:{sueno:2,lectura:2,naturaleza:2,meditacion:1,social:1}},
+ creatividad:{k:/dibuj|pintar|pintura|music|guitarra|piano|cantar|cancion|fotograf|disen|componer|\bart\b|tocar|instrumento|draw|paint|sketch|violin|bailar|baile/,h:['Practicar un instrumento 20 minutos','Dibujar o hacer un boceto','Tomar una foto del día'],r:{escritura:2,lectura:1,meditacion:1,naturaleza:1,social:1}},
+ gratitud:{k:/gratitud|agradec|grateful|gratitude|positiv|afirmacion|reflexion|reflect/,h:['Anotar 3 cosas por las que estás agradecido','Reflexionar sobre el día antes de dormir'],r:{escritura:3,meditacion:2,social:1}},
+ social:{k:/amigo|familia|llamar|llamada|pareja|socializ|\bcall\b|mensaje|voluntar|visitar|compartir|friend|family/,h:['Llamar o escribir a un amigo o familiar','Compartir una comida con alguien','Decirle algo amable a alguien'],r:{gratitud:1,naturaleza:1,deporte:1,creatividad:1}},
+ naturaleza:{k:/camin|paseo|\bwalk|\bsol\b|naturaleza|parque|senderismo|hiking|aire libre|outdoor|pasos|trekking/,h:['Caminar 30 minutos','Tomar el sol 10 minutos por la mañana','Salir a un parque o a la naturaleza'],r:{ejercicio:2,meditacion:2,sueno:1,social:1,pantallas:1}},
+ finanzas:{k:/ahorr|gasto|finanza|presupuesto|invert|inversion|money|budget|saving|dinero|plata/,h:['Anotar tus gastos del día','Ahorrar una cantidad fija','Revisar tu presupuesto semanal'],r:{organizacion:2,estudio:1,lectura:1}},
+ cuidado:{k:/dientes|cepill|hilo dental|skincare|\bpiel\b|ducha|banar|protector solar|aseo/,h:['Cepillarte los dientes 2 veces al día','Hacer tu rutina de cuidado de la piel','Usar protector solar'],r:{sueno:1,alimentacion:1,hidratacion:1,ejercicio:1}},
+ tecnologia:{k:/program|codigo|\bcode\b|coding|python|javascript|github|desarroll|leetcode|informatic|\bdev\b|software/,h:['Programar 30 minutos','Resolver un problema de código','Avanzar en un proyecto personal'],r:{estudio:2,enfoque:2,lectura:1,creatividad:1}}
+};
+const START=[['hidratacion','Beber 2 litros de agua'],['ejercicio','Hacer ejercicio 30 minutos'],['lectura','Leer 20 minutos'],['meditacion','Meditar 10 minutos'],['sueno','Dormir 7 a 8 horas'],['escritura','Escribir en un diario']];
+const COL=['#19c39a','#6d5dfc','#f59e0b','#ef4444','#3b82f6','#ec4899','#14b8a6','#84cc16','#f97316','#a855f7'];
+// Devuelve ideas de hábitos nuevos a partir de los que ya tienes (names) sin repetir los que descartaste (skip)
+function sugerencias(names,skip=[]){
+ const have=new Set(names.map(nz)),hit={},by={},out=[];
+ names.forEach(n=>{const z=nz(n);for(const c in CAT)if(CAT[c].k.test(z)){hit[c]=(hit[c]||0)+1;(by[c]=by[c]||[]).push(n)}});
+ const sc={},why={};
+ for(const c in hit)for(const r in CAT[c].r){if(hit[r])continue;sc[r]=(sc[r]||0)+CAT[c].r[r];(why[r]=why[r]||[]).push(by[c][0])}
+ Object.keys(sc).sort((a,b)=>sc[b]-sc[a]).forEach(r=>{
+  CAT[r].h.filter(n=>!have.has(nz(n))&&!skip.includes(nz(n))).slice(0,2).forEach(n=>out.push({n,cat:r,why:'Porque tienes “'+[...new Set(why[r])].slice(0,2).join('” y “')+'”'}));
+ });
+ if(!out.length)START.forEach(([c,n])=>{if(!hit[c]&&!have.has(nz(n))&&!skip.includes(nz(n)))out.push({n,cat:c,why:'Un buen punto de partida'})});
+ return out;
+}
+// </sug>
+let SUGO=0;
+const nosug=()=>{try{return JSON.parse(localStorage.getItem('habitos_nosug'))||[]}catch(e){return[]}};
+function sug(){
+ const el=$('#sug');if(!el)return;
+ const all=Q?[]:sugerencias(S.habits.map(h=>h.name),nosug());
+ if(!all.length){el.innerHTML='';return}
+ const n=4,off=(SUGO*n)%all.length,pick=[];
+ for(let i=0;i<Math.min(n,all.length);i++)pick.push(all[(off+i)%all.length]);
+ el.innerHTML=`<section class="card sg"><div class="ch"><h2>Ideas para tus próximos hábitos</h2>${all.length>n?'<button class="ib" data-a="sugmas">Más ideas ↻</button>':''}</div>${pick.map(x=>`<div class="si"><div><b>${esc(x.n)}</b><div class="st">${esc(x.why)}</div></div><div class="ic"><button class="btn" data-a="sugadd" data-n="${esc(x.n)}" data-c="${x.cat}">+ Añadir</button><button class="ib" data-a="sugno" data-n="${esc(x.n)}" title="No me interesa" aria-label="No me interesa">✕</button></div></div>`).join('')}</section>`;
+}
+function sugAdd(n,c){
+ const ks=Object.keys(CAT),i=ks.indexOf(c);
+ S.habits.push({id:nid(),name:n,color:COL[(i>=0?i:S.habits.length)%COL.length],created:key(today()),u:Date.now(),dates:{},dx:{}});save();list();
+}
+function sugNo(n){const l=nosug();l.push(nz(n));try{localStorage.setItem('habitos_nosug',JSON.stringify(l))}catch(e){}sug()}
 
 let DK=key(today());
 const done=k=>S.habits.filter(h=>h.dates[k]).map(h=>h.name);
@@ -328,7 +441,7 @@ function view(){
  if(v==='perfil'){a.innerHTML=perfil();scrollHM()}
  else if(v==='diario'){a.innerHTML=diario();ents()}
  else if(v==='ajustes'){a.innerHTML=ajustes();$('#th').value=S.theme;$('#dst').textContent=dst()}
- else{a.innerHTML=`${tip('habitos')}<div class="tb"><label class="sb"><span>⌕</span><input id="q" placeholder="Buscar hábitos" value="${esc(Q)}"><kbd>Ctrl</kbd><kbd>K</kbd></label>${yrsel()}<button class="btn" data-a="reord">Reordenar ⇅</button><button class="btn" data-a="new">Crear hábito ▾</button></div><div id="list"></div>`;list()}
+ else{a.innerHTML=`${tip('habitos')}<div class="tb"><label class="sb"><span>⌕</span><input id="q" placeholder="Buscar hábitos" value="${esc(Q)}"><kbd>Ctrl</kbd><kbd>K</kbd></label>${yrsel()}<button class="btn" data-a="reord">Reordenar ⇅</button><button class="btn" data-a="new">Crear hábito ▾</button></div><div id="list"></div><div id="sug"></div>`;list()}
 }
 const find=id=>S.habits.find(h=>h.id===id);
 function toggle(id,k){const h=find(id),t=Date.now();if(h.dates[k]){delete h.dates[k];h.dx[k]=t}else{h.dates[k]=t;delete h.dx[k];if(k<h.created)h.created=k}save();list()}
@@ -347,7 +460,11 @@ $('#app').addEventListener('click',e=>{
  else if(a==='disc')desconectar();
  else if(a==='bg')setBg(b.dataset.k);
  else if(a==='bgup')$('#bgf').click();
- else if(a==='bgrm')quitarFondo();
+ else if(a==='wp')setWp(b.dataset.id);
+ else if(a==='wpdel')borrarWp(b.dataset.id);
+ else if(a==='sugadd')sugAdd(b.dataset.n,b.dataset.c);
+ else if(a==='sugno')sugNo(b.dataset.n);
+ else if(a==='sugmas'){SUGO++;sug()}
  else if(a==='tipx'){const l=tipsOff();l.push(b.dataset.t);try{localStorage.setItem(TIPK,JSON.stringify(l))}catch(e){}b.closest('.ban').remove()}
  else if(a==='tips'){try{localStorage.removeItem(TIPK)}catch(e){}view()}
  else if(a==='col'){const c=$('#cc');c.value=h.color||'#19c39a';c.dataset.h=id;c.click()}
@@ -358,7 +475,7 @@ $('#app').addEventListener('click',e=>{
 $('#app').addEventListener('input',e=>{
  if(e.target.id==='q'){Q=e.target.value;list()}
  if(e.target.id==='un'){S.user=e.target.value.trim()||'Usuario';save()}
- if(e.target.id==='bgo'){BG.o=e.target.value/100;$('#bg').style.opacity=BG.o;$('#bgov').textContent=e.target.value+'%';saveBg()}
+ if(e.target.id==='bgo'){S.bg.o=e.target.value/100;$('#bg').style.opacity=S.bg.o;$('#bgov').textContent=e.target.value+'%';persist()}
  if(e.target.id==='tx'){const v=e.target.value;if(v.trim())S.diary[DK]=v;else delete S.diary[DK];S.dm[DK]=Date.now();save();ents();$('#st').textContent='Guardado'}
 });
 $('#app').addEventListener('change',e=>{
@@ -366,6 +483,7 @@ $('#app').addEventListener('change',e=>{
  if(e.target.id==='dt'&&e.target.value){DK=e.target.value;view()}
  if(e.target.id==='fi')importar(e.target);
  if(e.target.id==='bgf')subirFondo(e.target);
+ if(e.target.id==='bgo'){S.bg.t=Date.now();save()}
  if(e.target.id==='yr'){YR=e.target.value?+e.target.value:null;view()}
 });
 $('#frm').addEventListener('submit',()=>{
@@ -407,12 +525,15 @@ function merge(A,B){
   const ta=A.dm[k]||0,tb=B.dm[k]||0,w=ta>=tb?A:B,o=w===A?B:A,t=Math.max(ta,tb),x=w.diary[k]||(t?'':(o.diary[k]||''));
   if(t)dm[k]=t;if(x)diary[k]=x;
  });
- return{habits,diary,dm,del,user:nw.user,theme:A.theme,mt:mx(A.mt,B.mt),om:mx(A.om,B.om)};
+ const wpdel={...B.wpdel,...A.wpdel},wp={};
+ [B.wp,A.wp].forEach(m=>Object.keys(m).forEach(id=>{if(!wpdel[id])wp[id]=m[id]}));
+ const bg=(A.bg.t||0)>=(B.bg.t||0)?A.bg:B.bg;
+ return{habits,diary,dm,del,wp,wpdel,bg,user:nw.user,theme:A.theme,mt:mx(A.mt,B.mt),om:mx(A.om,B.om)};
 }
 // </merge>
 
 function exportar(){
- const b=new Blob([JSON.stringify(S,null,1)],{type:'application/json'}),a=document.createElement('a');
+ const b=new Blob([JSON.stringify((({wp,wpdel,bg,...D})=>D)(S),null,1)],{type:'application/json'}),a=document.createElement('a');
  a.href=URL.createObjectURL(b);a.download='habitos-respaldo-'+key(today())+'.json';a.click();
  setTimeout(()=>URL.revokeObjectURL(a.href),1000);
 }
@@ -460,12 +581,15 @@ async function sync(inter){
  busy=true;setSS('Sincronizando…');
  try{
   await token(inter);
-  const q=encodeURIComponent("name='"+FN+"' and trashed=false");
-  const l=await(await gf(GAPI+'drive/v3/files?spaces=appDataFolder&orderBy=createdTime&fields=files(id)&q='+q)).json();
-  const id=l.files&&l.files[0]&&l.files[0].id;
+  const l=await(await gf(GAPI+'drive/v3/files?spaces=appDataFolder&orderBy=createdTime&pageSize=200&fields=files(id,name)&q='+encodeURIComponent('trashed=false'))).json();
+  const files=l.files||[],df=files.find(f=>f.name===FN),id=df&&df.id,wf={};
+  files.forEach(f=>{const m=/^wp-(.+)\.jpg$/.exec(f.name);if(m)wf[m[1]]=f.id});
   let R=null;
   if(id){const j=await(await gf(GAPI+'drive/v3/files/'+id+'?alt=media')).json();if(valid(j))R=norm(j)}
   const snap=JSON.stringify(S),M=R?merge(S,R):S,out=JSON.stringify(M);
+  // 1) los fondos nuevos se suben antes que el archivo de datos que los menciona
+  for(const w of Object.keys(M.wp)){if(!wf[w]){const bl=await wpGet(w);if(bl)wf[w]=await wpUpload(w,bl)}}
+  // 2) datos
   if(!R||out!==JSON.stringify(R)){
    if(id)await gf(GAPI+'upload/drive/v3/files/'+id+'?uploadType=media',{method:'PATCH',headers:{'Content-Type':'application/json'},body:out});
    else{
@@ -474,8 +598,15 @@ async function sync(inter){
      body:'--'+bd+'\r\nContent-Type: application/json; charset=UTF-8\r\n\r\n'+JSON.stringify({name:FN,parents:['appDataFolder']})+'\r\n--'+bd+'\r\nContent-Type: application/json\r\n\r\n'+out+'\r\n--'+bd+'--'});
    }
   }
+  let changed=false;
   if(JSON.stringify(S)!==snap)again=true;
-  else if(out!==snap){S=M;persist();if(!/INPUT|TEXTAREA/.test(document.activeElement.tagName))view()}
+  else if(out!==snap){S=M;persist();changed=true}
+  // 3) bajar los fondos que faltan en este dispositivo
+  for(const w of Object.keys(M.wp)){if(wf[w]&&!(await wpGet(w))){const r=await gf(GAPI+'drive/v3/files/'+wf[w]+'?alt=media');await wpPut(w,await r.blob()).catch(()=>{});changed=true}}
+  // 4) limpiar: borrar de Drive los fondos eliminados y de este dispositivo los que ya no existen
+  for(const w of Object.keys(wf)){if(M.wpdel[w])await gf(GAPI+'drive/v3/files/'+wf[w],{method:'DELETE'}).catch(()=>{})}
+  for(const k of await wpKeys()){if(!M.wp[k]&&!S.wp[k])await wpDel(k)}
+  if(changed){applyBg();if(!/INPUT|TEXTAREA/.test(document.activeElement.tagName))view()}
   localStorage.setItem('habitos_drive','1');lastSync=Date.now();
   setSS('Sincronizado ✓ '+new Date().toLocaleTimeString('es',{hour:'2-digit',minute:'2-digit'}));
  }catch(e){setSS(errMsg(e),true)}
