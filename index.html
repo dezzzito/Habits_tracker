@@ -111,6 +111,23 @@ body.hb .set{background:color-mix(in srgb,var(--bg) 82%,transparent);backdrop-fi
 .sg .ch{margin-bottom:6px}.sg .ch h2{font-size:20px}
 .si{display:flex;justify-content:space-between;align-items:center;gap:12px;padding:12px 0;border-top:1px solid var(--bd)}
 .si .ic{flex-shrink:0}
+.hn{font-size:14px;margin:6px 0;white-space:pre-wrap;overflow-wrap:anywhere}.hn b{color:var(--mut)}
+.c.n{position:relative}.c.n::after{content:'';position:absolute;left:4px;top:4px;width:4px;height:4px;border-radius:50%;background:rgba(255,255,255,.9)}
+#jd{width:min(440px,94vw);padding:0}
+.jh{display:flex;align-items:center;gap:10px;padding:18px 22px;border-bottom:1px solid var(--bd)}.jh b{flex:1;font-size:18px;overflow-wrap:anywhere}
+.jdot{width:16px;height:16px;border-radius:50%;flex-shrink:0}
+.jh kbd{font-size:11px;background:var(--cell);color:var(--mut);padding:2px 6px;border-radius:4px}
+.jr{display:flex;gap:10px;padding:14px 22px;border-bottom:1px solid var(--bd);color:var(--mut)}.jr b{color:var(--fg)}
+#jd label{display:block;padding:14px 22px 6px;color:var(--mut)}
+#jd textarea{display:block;width:calc(100% - 44px);margin:0 22px;padding:11px 12px;background:var(--bg);border:1px solid var(--bd);border-radius:6px;resize:vertical}
+.jf{display:flex;justify-content:space-between;align-items:center;gap:10px;flex-wrap:wrap;padding:16px 22px;border-top:1px solid var(--bd);margin-top:16px}
+.jstreak{display:flex;align-items:center;gap:6px;color:var(--mut);font-size:14px}.jstreak svg{width:14px;height:14px;fill:#f59e0b}.jstreak b{color:var(--fg)}
+.jf .btn+.btn{margin-left:8px}
+.pri{background:var(--g);color:#fff;border-color:var(--g);font-weight:600}
+.dtw{display:flex;gap:8px;position:relative}.dtw input[type=text]{flex:1}
+.dtn{position:absolute;right:0;top:0;width:1px;height:1px;opacity:0;pointer-events:none}
+.set .av{width:72px;height:72px;font-size:30px;margin-top:6px}
+.set .chk{display:flex;align-items:center;gap:10px;color:var(--fg);margin-top:14px}.set .chk input{width:auto;padding:0}
 @media(max-width:600px){.card{padding:18px}nav{gap:18px}.ch h2{font-size:20px}}
 </style>
 </head>
@@ -125,6 +142,13 @@ body.hb .set{background:color-mix(in srgb,var(--bg) 82%,transparent);backdrop-fi
 <main id="app"></main>
 <footer>Hecho con <span style="color:#f472b6">♥</span><div id="ss"></div></footer>
 <input type="color" id="cc" tabindex="-1" aria-hidden="true" style="position:fixed;left:-100px;top:0;width:1px;height:1px;opacity:0;pointer-events:none">
+<dialog id="jd">
+ <div class="jh"><span class="jdot" id="jdot"></span><b id="jname"></b><kbd>Esc</kbd></div>
+ <div class="jr"><span>Fecha:</span><b id="jdate"></b></div>
+ <label for="jt">Entrada de diario</label>
+ <textarea id="jt" rows="5" placeholder="Escribe cómo te fue con este hábito…"></textarea>
+ <div class="jf"><span class="jstreak"><svg viewBox="0 0 16 16"><path d="M8 1c1 3 4 4 4 8a4 4 0 01-8 0c0-2 1-3 2-4 0 1 1 2 2 2 0-2-1-3 0-6z"/></svg><span id="jst"></span></span><div><button type="button" class="btn" id="jun">Desmarcar</button><button type="button" class="btn pri" id="jok">Completar</button></div></div>
+</dialog>
 <dialog id="dlg">
  <form method="dialog" id="frm">
   <label for="nm">Nombre del hábito</label>
@@ -135,12 +159,94 @@ body.hb .set{background:color-mix(in srgb,var(--bg) 82%,transparent);backdrop-fi
 </dialog>
 <script>
 const K='habitos_v1',$=s=>document.querySelector(s);
-const MES=['Ene','Feb','Mar','Abr','May','Jun','Jul','Ago','Sep','Oct','Nov','Dic'];
-const DIAS=['Lun','','Mié','','Vie','',''];
+// ===== Idioma (español / inglés) y formato de fecha DD/MM/AAAA =====
+const LK='habitos_lang';
+let LANG='es';try{if(localStorage.getItem(LK)==='en')LANG='en'}catch(e){}
+const fmt=k=>k.slice(8)+'/'+k.slice(5,7)+'/'+k.slice(0,4);
+const parseF=s=>{const m=/^(\d{2})\/(\d{2})\/(\d{4})$/.exec(String(s).trim());if(!m)return null;const d=new Date(+m[3],+m[2]-1,+m[1]);return(d.getFullYear()===+m[3]&&d.getMonth()===+m[2]-1&&d.getDate()===+m[1])?key(d):null};
+const mask=v=>{const d=String(v).replace(/\D/g,'').slice(0,8);return d.length>4?d.slice(0,2)+'/'+d.slice(2,4)+'/'+d.slice(4):d.length>2?d.slice(0,2)+'/'+d.slice(2):d};
+// <i18n>
+// El texto de la interfaz está escrito en español; en inglés se traduce al vuelo con este diccionario.
+const EN={
+'Mis hábitos':'My habits','Diario':'Diary','Perfil':'Profile','Ajustes':'Settings','Hecho con':'Made with',
+'Buscar hábitos':'Search habits','Reordenar':'Reorder','Reordenar ⇅':'Reorder ⇅','Crear hábito':'Create habit','Crear hábito ▾':'Create habit ▾','Últimos 12 meses':'Last 12 months','Año':'Year',
+'Nombre del hábito':'Habit name','Ej. Leer 20 minutos':'E.g. Read for 20 minutes','Color':'Color','Cancelar':'Cancel','Cerrar':'Close',
+'Registrar hoy →':'Log today →','✓ Hecho hoy':'✓ Done today','Renombrar':'Rename','Cambiar color':'Change color','Eliminar':'Delete','No me interesa':'Not interested',
+'día de racha · mejor':'day streak · best','días de racha · mejor':'day streak · best','días de racha':'day streak','día de racha':'day streak','· este mes':'· this month',
+'Ningún hábito coincide con la búsqueda.':'No habit matches your search.','Aún no tienes hábitos. Crea el primero con “Crear hábito”.':'You have no habits yet. Create your first one with “Create habit”.',
+'Ideas para tus próximos hábitos':'Ideas for your next habits','Más ideas ↻':'More ideas ↻','+ Añadir':'+ Add','Un buen punto de partida':'A good starting point',
+'Puntaje diario (1 año):':'Daily score (1 year):','Cumplimiento diario':'Daily completion',
+'Día':'Day','¿Cómo te fue este día?':'How was your day?','Escribe lo que quieras recordar de este día…':'Write whatever you want to remember about this day…','Se guarda solo mientras escribes.':'Saved automatically as you type.','Guardado':'Saved','Entradas anteriores':'Previous entries','Aún no hay entradas. Escribe la de hoy.':'No entries yet. Write today’s.','Sin hábitos registrados':'No habits logged','DD/MM/AAAA':'DD/MM/YYYY','Calendario':'Calendar',
+'Fecha:':'Date:','Entrada de diario':'Journal entry','Escribe cómo te fue con este hábito…':'Write how it went with this habit…','Completar':'Complete','Guardar':'Save','Desmarcar':'Unmark',
+'Apariencia':'Appearance','Modo claro / oscuro:':'Light / Dark mode:','☀ Claro':'☀ Light','☾ Oscuro':'☾ Dark','Idioma:':'Language:',
+'Fondo':'Background','Cuadrícula':'Grid','Puntos':'Dots','Aurora':'Aurora','Atardecer':'Sunset','Océano':'Ocean','Bosque':'Forest','Liso':'Plain','Mi imagen':'My image','Imagen':'Image','Opacidad del fondo:':'Background opacity:','Subir imágenes':'Upload images',
+'Usar un fondo distinto solo en este dispositivo':'Use a different background only on this device',
+'Tus imágenes se guardan en este dispositivo. Conecta Google Drive para tenerlas en todos tus dispositivos. Puedes guardar hasta 12.':'Your images are saved on this device. Connect Google Drive to have them on all your devices. You can keep up to 12.',
+'Tus imágenes se guardan en tu cuenta de Google Drive y aparecen en todos tus dispositivos. Puedes guardar hasta 12.':'Your images are saved in your Google Drive account and appear on all your devices. You can keep up to 12.',
+'Detalles del perfil':'Profile details','Subir foto':'Upload photo','Quitar foto':'Remove photo','Nombre de usuario:':'Username:','Usuario':'User',
+'Respaldo':'Backup','Descarga una copia de tus datos o restáurala desde un archivo. Al importar, los datos se combinan con los actuales y no se borra nada.':'Download a copy of your data or restore it from a file. When importing, the data is merged with your current data and nothing is deleted.',
+'Exportar JSON':'Export JSON','Importar JSON':'Import JSON','Conectar con Google Drive':'Connect to Google Drive','Sincronizar ahora':'Sync now','Desconectar':'Disconnect',
+'Si conectas Drive, tus datos también se guardan en una carpeta oculta de tu cuenta de Google que solo esta app puede leer.':'If you connect Drive, your data is also saved in a hidden folder of your Google account that only this app can read.',
+'Tutoriales':'Tutorials','Los avisos de ayuda de cada sección se cierran con la ✕.':'The help notices in each section can be closed with the ✕.','Mostrar los tutoriales de nuevo':'Show the tutorials again',
+'Sin conexión a internet.':'No internet connection.','No se pudo cargar Google. Revisa tu conexión.':'Google could not be loaded. Check your connection.','Permiso denegado en Google.':'Permission denied by Google.',
+'Drive rechazó la petición: revisa que la API de Google Drive esté habilitada.':'Drive rejected the request: check that the Google Drive API is enabled.',
+'Sesión de Google caducada: ve a Ajustes y pulsa “Sincronizar ahora”.':'Google session expired: go to Settings and press “Sync now”.','No se completó la conexión con Google.':'The connection with Google was not completed.',
+'Nuevo nombre del hábito':'New habit name','El archivo no es un JSON válido.':'The file is not valid JSON.','El archivo no parece un respaldo de esta app.':'The file does not look like a backup of this app.',
+'Se combinará con tus datos actuales; no se borra nada. ¿Continuar?':'It will be merged with your current data; nothing is deleted. Continue?','No se pudo usar esa foto.':'That photo could not be used.',
+'Leer 20 minutos':'Read for 20 minutes','Leer 10 páginas antes de dormir':'Read 10 pages before bed','Escuchar un audiolibro o podcast':'Listen to an audiobook or podcast',
+'Escribir 10 minutos':'Write for 10 minutes','Escribir en un diario':'Write in a journal','Anotar tres ideas del día':'Jot down three ideas of the day',
+'Hacer ejercicio 30 minutos':'Exercise for 30 minutes','Entrenar fuerza (pesas o calistenia)':'Strength training (weights or calisthenics)','Hacer 10 000 pasos':'Walk 10,000 steps',
+'Practicar un deporte (fútbol, vóley, natación…)':'Play a sport (soccer, volleyball, swimming…)','Entrenar artes marciales (karate, judo, boxeo…)':'Train martial arts (karate, judo, boxing…)','Salir en bici':'Go for a bike ride',
+'Estirar 10 minutos':'Stretch for 10 minutes','Hacer yoga':'Do yoga','Hacer movilidad al despertar':'Do mobility work when you wake up',
+'Meditar 10 minutos':'Meditate for 10 minutes','Respiración consciente 5 minutos':'Mindful breathing for 5 minutes',
+'Dormir 7 a 8 horas':'Sleep 7 to 8 hours','Acostarte a la misma hora':'Go to bed at the same time','Despertar a la misma hora':'Wake up at the same time',
+'Beber 2 litros de agua':'Drink 2 liters of water','Tomar un vaso de agua al despertar':'Drink a glass of water when you wake up',
+'Comer una fruta o verdura':'Eat a fruit or vegetable','Cocinar en casa':'Cook at home','No tomar bebidas azucaradas':'Avoid sugary drinks',
+'Estudiar 1 hora sin distracciones':'Study for 1 hour without distractions','Repasar tus apuntes del día':'Review your notes of the day','Resolver 5 problemas':'Solve 5 problems',
+'Practicar un idioma 15 minutos':'Practice a language for 15 minutes','Aprender 5 palabras nuevas':'Learn 5 new words','Ver un video o podcast en otro idioma':'Watch a video or podcast in another language',
+'Hacer una sesión de trabajo profundo':'Do a deep work session','Definir las 3 tareas más importantes del día':'Define the 3 most important tasks of the day','Usar la técnica Pomodoro':'Use the Pomodoro technique',
+'Tender la cama':'Make your bed','Ordenar tu espacio 10 minutos':'Tidy your space for 10 minutes','Planificar el día siguiente':'Plan the next day',
+'No usar el celular la primera hora del día':'No phone during the first hour of the day','Limitar redes sociales a 30 minutos':'Limit social media to 30 minutes','Apagar pantallas 1 hora antes de dormir':'Turn off screens 1 hour before bed',
+'Practicar un instrumento 20 minutos':'Practice an instrument for 20 minutes','Dibujar o hacer un boceto':'Draw or sketch','Tomar una foto del día':'Take a photo of the day',
+'Anotar 3 cosas por las que estás agradecido':'Write down 3 things you are grateful for','Reflexionar sobre el día antes de dormir':'Reflect on your day before bed',
+'Llamar o escribir a un amigo o familiar':'Call or text a friend or family member','Compartir una comida con alguien':'Share a meal with someone','Decirle algo amable a alguien':'Say something kind to someone',
+'Caminar 30 minutos':'Walk for 30 minutes','Tomar el sol 10 minutos por la mañana':'Get 10 minutes of morning sun','Salir a un parque o a la naturaleza':'Go to a park or out in nature',
+'Anotar tus gastos del día':'Log your expenses of the day','Ahorrar una cantidad fija':'Save a fixed amount','Revisar tu presupuesto semanal':'Review your weekly budget',
+'Cepillarte los dientes 2 veces al día':'Brush your teeth twice a day','Hacer tu rutina de cuidado de la piel':'Do your skincare routine','Usar protector solar':'Use sunscreen',
+'Programar 30 minutos':'Code for 30 minutes','Resolver un problema de código':'Solve a coding problem','Avanzar en un proyecto personal':'Make progress on a personal project'
+};
+const PAT=[
+[/No conectado\./g,'Not connected.'],[/Conectado\./g,'Connected.'],[/Sincronizando…/g,'Syncing…'],[/Sincronizado ✓/g,'Synced ✓'],
+[/Falta pegar el ID de cliente de Google en el archivo index\.html\./,'The Google client ID is missing in index.html.'],[/Falta el ID de cliente de Google\./,'The Google client ID is missing.'],
+[/Error de Drive \((\d+)\)\./,'Drive error ($1).'],
+[/Porque tienes “(.+?)” y “(.+?)”/,'Because you have “$1” and “$2”'],[/Porque tienes “(.+?)”/,'Because you have “$1”'],
+[/(\d+) días registrados/,'$1 days logged'],[/(\d+) día registrado/,'$1 day logged'],[/(\d+) puntos/,'$1 points'],[/(\d+) punto\b/,'$1 point'],
+[/¿Eliminar “(.+)” y todo su historial\?/,'Delete “$1” and all its history?'],
+[/¿Eliminar la imagen “(.+)”\? También se borrará de tu Drive\./,'Delete the image “$1”? It will also be removed from your Drive.'],
+[/Llegaste al límite de (\d+) imágenes\. Elimina alguna para subir otras\./,'You reached the limit of $1 images. Delete one to upload more.'],
+[/No se pudo usar la imagen “(.*)”\./,'The image “$1” could not be used.']
+];
+// </i18n>
+const tr=s=>{if(LANG==='es'||s==null)return s;s=String(s);const k=s.trim();if(EN[k])return s.replace(k,EN[k]);let o=s;for(const[r,v]of PAT)o=o.replace(r,v);return o};
+function trNode(n){
+ if(n.nodeType===3){const p=n.parentNode&&n.parentNode.nodeName;if(p==='SCRIPT'||p==='STYLE'||p==='TEXTAREA')return;const v=tr(n.nodeValue);if(v!==n.nodeValue)n.nodeValue=v;return}
+ if(n.nodeType!==1||/^(SCRIPT|STYLE)$/.test(n.nodeName))return;
+ const w=document.createTreeWalker(n,NodeFilter.SHOW_TEXT),ts=[];let x;while(x=w.nextNode())ts.push(x);ts.forEach(trNode);
+ [n,...n.querySelectorAll('[placeholder],[title],[aria-label]')].forEach(e=>['placeholder','title','aria-label'].forEach(a=>{const v=e.getAttribute(a);if(v){const r=tr(v);if(r!==v)e.setAttribute(a,r)}}));
+}
+if(LANG==='en'){
+ document.documentElement.lang='en';document.title='My habits';
+ const _a=window.alert,_c=window.confirm,_p=window.prompt;
+ window.alert=m=>_a.call(window,tr(m));window.confirm=m=>_c.call(window,tr(m));window.prompt=(m,d)=>_p.call(window,tr(m),d);
+ new MutationObserver(ms=>ms.forEach(m=>m.addedNodes.forEach(trNode))).observe(document.body,{childList:true,subtree:true});
+ trNode(document.body);
+}
+const MES=LANG==='en'?['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec']:['Ene','Feb','Mar','Abr','May','Jun','Jul','Ago','Sep','Oct','Nov','Dic'];
+const DIAS=LANG==='en'?['Mon','','Wed','','Fri','','']:['Lun','','Mié','','Vie','',''];
 let Q='',REORD=false,YR=null;
 let S=(()=>{try{const d=JSON.parse(localStorage.getItem(K));if(d&&d.habits)return d}catch(e){}
  return{habits:[],user:'Usuario',theme:matchMedia('(prefers-color-scheme: dark)').matches?'dark':'light'}})();
-const norm=o=>{o.habits=o.habits||[];o.habits.forEach(h=>{h.dates=h.dates||{};h.dx=h.dx||{};h.u=h.u||0});o.diary=o.diary||{};o.dm=o.dm||{};o.del=o.del||{};o.mt=o.mt||0;o.om=o.om||0;o.wp=o.wp||{};o.wpdel=o.wpdel||{};o.bg=(o.bg&&typeof o.bg==='object')?o.bg:{k:'grid',o:1,t:0};return o};
+const norm=o=>{o.habits=o.habits||[];o.habits.forEach(h=>{h.dates=h.dates||{};h.dx=h.dx||{};h.u=h.u||0;h.jn=h.jn||{};h.jm=h.jm||{}});o.diary=o.diary||{};o.dm=o.dm||{};o.del=o.del||{};o.mt=o.mt||0;o.om=o.om||0;o.wp=o.wp||{};o.av=(o.av&&typeof o.av==='object')?o.av:{d:'',t:0};o.wpdel=o.wpdel||{};o.bg=(o.bg&&typeof o.bg==='object')?o.bg:{k:'grid',o:1,t:0};return o};
 norm(S);
 const persist=()=>{try{localStorage.setItem(K,JSON.stringify(S))}catch(e){}};
 const save=()=>{S.mt=Date.now();persist();push()};
@@ -166,7 +272,7 @@ function heat(fn,edit,hid,color){
    const x=new Date(start);x.setDate(start.getDate()+w*7+d);
    if(x>to||x<lo){cells+='<i class="c f"></i>';continue}
    const k=key(x);
-   cells+=`<i class="c ${fn(k)}${k===tk?' t':''}" title="${k}"${edit?` data-d="${k}" data-h="${hid}"`:''}></i>`;
+   cells+=`<i class="c ${fn(k)}${k===tk?' t':''}" title="${fmt(k)}"${edit?` data-d="${k}" data-h="${hid}"`:''}></i>`;
   }
  }
  return`<div class="hw"><div class="hi"${color?` style="--c:${color}"`:''}><div class="ml">${lab}</div><div class="bd"><div class="dl">${DIAS.map(d=>`<span>${d}</span>`).join('')}</div><div class="cells">${cells}</div></div></div></div>`;
@@ -202,7 +308,7 @@ const lvl=p=>p===0?'':p<=.25?'l1':p<=.5?'l2':p<=.75?'l3':'l4';
 function card(h,edit){
  const done=!!h.dates[key(today())];
  const ctl=edit?`<div class="ic">${REORD?'<button class="ib" data-a="up">↑</button><button class="ib" data-a="dn">↓</button>':''}<details class="dd"><summary>⋮</summary><div><button data-a="ren">Renombrar</button><button data-a="col">Cambiar color</button><button data-a="del">Eliminar</button></div></details></div>`:'';
- return`<section class="card" data-id="${h.id}"><div class="ch"><h2>${esc(h.name)}</h2>${ctl}</div>${heat(k=>h.dates[k]?'on':'',edit,h.id,h.color)}${edit?`<div class="lt"><div class="st">${stats(h)}</div><button class="btn${done?' ok':''}" data-a="today">${done?'✓ Hecho hoy':'Registrar hoy →'}</button></div>`:''}</section>`;
+ return`<section class="card" data-id="${h.id}"><div class="ch"><h2>${esc(h.name)}</h2>${ctl}</div>${heat(k=>h.dates[k]?(h.jn[k]?'on n':'on'):'',edit,h.id,h.color)}${edit?`<div class="lt"><div class="st">${stats(h)}</div><button class="btn${done?' ok':''}" data-a="today">${done?'✓ Hecho hoy':'Registrar hoy →'}</button></div>`:''}</section>`;
 }
 function list(){
  const q=Q.toLowerCase(),hs=S.habits.filter(h=>h.name.toLowerCase().includes(q));
@@ -217,15 +323,16 @@ function perfil(){
  const set=new Set();S.habits.forEach(h=>Object.keys(h.dates).forEach(k=>{set.add(k);pts++}));days=set.size;
  const poly=pts2.map((p,i)=>`${i},${58-p*54}`).join(' ');
  return`${tip('perfil')}
- <div class="ph"><div class="av">${esc((S.user||'U')[0].toUpperCase())}</div><div class="pi"><h1>${esc(S.user)}</h1><div>${days} ${days===1?'día registrado':'días registrados'}</div><div>${pts} ${pts===1?'punto':'puntos'}</div></div>
+ <div class="ph">${avHtml()}<div class="pi"><h1>${esc(S.user)}</h1><div>${days} ${days===1?'día registrado':'días registrados'}</div><div>${pts} ${pts===1?'punto':'puntos'}</div></div>
  <div class="sc">Puntaje diario (1 año):<svg viewBox="0 0 364 60" preserveAspectRatio="none"><polyline points="${poly}" fill="none" stroke="var(--g)" stroke-width="1.5" vector-effect="non-scaling-stroke"/></svg></div></div>
  <section class="card"><div class="ch"><h2>Cumplimiento diario</h2>${yrsel()}</div>${heat(k=>lvl(pct(k)),false)}</section>`+S.habits.map(h=>card(h,false)).join('');
 }
 function ajustes(){
  return`<div class="set">${tip('ajustes')}<h2>Apariencia</h2><label for="th">Modo claro / oscuro:</label>
  <select id="th"><option value="light">☀ Claro</option><option value="dark">☾ Oscuro</option></select>
+ <label for="lg" style="margin-top:14px">Idioma:</label><select id="lg"><option value="es">Español</option><option value="en">English</option></select>
  ${bgHtml()}
- <h2>Detalles del perfil</h2><label for="un">Nombre de usuario:</label><input id="un" maxlength="30" value="${esc(S.user)}">
+ <h2>Detalles del perfil</h2>${avHtml()}<div class="row" style="justify-content:flex-start;margin:10px 0 16px"><button class="btn" data-a="avup">Subir foto</button>${S.av.d?'<button class="btn" data-a="avrm">Quitar foto</button>':''}</div><input type="file" id="avf" accept="image/*" hidden><label for="un">Nombre de usuario:</label><input id="un" maxlength="30" value="${esc(S.user)}">
  <h2>Respaldo</h2><p>Descarga una copia de tus datos o restáurala desde un archivo. Al importar, los datos se combinan con los actuales y no se borra nada.</p>
  <div class="row" style="justify-content:flex-start"><button class="btn" data-a="exp">Exportar JSON</button><button class="btn" data-a="imp">Importar JSON</button></div><input type="file" id="fi" accept=".json,application/json" hidden>
  <h2>Google Drive</h2><p id="dst"></p>
@@ -238,27 +345,55 @@ function ajustes(){
 // ===== Tutoriales: avisos de ayuda que se pueden cerrar con la ✕ =====
 const TIPK='habitos_tips';
 const tipsOff=()=>{try{return JSON.parse(localStorage.getItem(TIPK))||[]}catch(e){return[]}};
-const TIPS={
- habitos:()=>`<b>Cómo usar “Mis hábitos”</b><ul>
+const TIPS_ES={
+ habitos2:()=>`<b>Cómo usar “Mis hábitos”</b><ul>
   <li>Pulsa <b>Crear hábito</b> para añadir uno con su nombre y su color.</li>
-  <li>Toca <b>Registrar hoy</b> o cualquier cuadrito del mapa para marcar ese día como cumplido. Tócalo de nuevo para desmarcarlo. También puedes marcar días pasados.</li>
+  <li>Toca <b>Registrar hoy</b> o cualquier cuadrito del mapa para abrir el registro de ese día: escribe una nota si quieres (el journal del hábito) y pulsa <b>Completar</b>. Los días con nota llevan un puntito. También puedes marcar días pasados.</li>
   <li>En el menú <b>⋮</b> de cada hábito puedes renombrarlo, cambiarle el color o eliminarlo.</li>
   <li>Con el selector de años ves años anteriores, con <b>Reordenar</b> cambias el orden y con la búsqueda (<kbd>Ctrl</kbd> + <kbd>K</kbd>) filtras tus hábitos.</li>
   <li>Al final de la lista verás ideas de hábitos nuevos según los que ya tienes. Tócalas para añadirlas.</li></ul>`,
  diario:()=>`<b>Cómo usar el “Diario”</b><ul>
   <li>Escribe una entrada por día; se guarda sola mientras escribes.</li>
-  <li>Arriba ves qué hábitos cumpliste ese día. Cambia la fecha para escribir sobre otro día.</li>
+  <li>Escribe la fecha como DD/MM/AAAA o elígela con el botón del calendario.</li>
+  <li>Arriba ves qué hábitos cumpliste ese día y las notas que escribiste en cada uno.</li>
   <li>Toca una entrada anterior para abrirla y editarla.</li></ul>`,
  perfil:()=>`<b>Tu perfil</b><ul>
   <li>Aquí ves tus <b>días registrados</b>, tus <b>puntos</b> (uno por cada hábito cumplido) y el gráfico de puntaje diario.</li>
   <li>En “Cumplimiento diario”, cuanto más intenso es el verde, mayor es el porcentaje de hábitos que cumpliste ese día.</li>
+  <li>Cambia tu foto y tu nombre en Ajustes.</li>
   <li>${conn()?'Tus datos se guardan en este dispositivo y se sincronizan con tu cuenta de Google.':'Tus datos se guardan solo en este dispositivo. Conecta Google Drive en Ajustes para sincronizarlos con tus otros dispositivos.'}</li></ul>`,
  ajustes:()=>`<b>Cómo usar los “Ajustes”</b><ul>
-  <li>Elige modo claro u oscuro y un fondo. Las imágenes que subas se guardan en tu Drive si lo conectas.</li>
+  <li>Elige el idioma, el modo claro u oscuro y un fondo. Puedes usar un fondo distinto en cada dispositivo.</li>
+  <li>Tu foto de perfil y tus imágenes de fondo se guardan en tu Drive si lo conectas.</li>
   <li><b>Exportar JSON</b> descarga una copia de tus datos y <b>Importar JSON</b> la restaura sin borrar nada.</li>
   <li>Conecta <b>Google Drive</b> para sincronizar tus datos entre dispositivos. Si ves un aviso rojo debajo del pie de página, pulsa “Sincronizar ahora”.</li>
   <li>En el móvil puedes instalar la web desde el menú del navegador con “Añadir a pantalla de inicio”.</li></ul>`
 };
+const TIPS_EN={
+ habitos2:()=>`<b>How to use “My habits”</b><ul>
+  <li>Press <b>Create habit</b> to add one with its name and color.</li>
+  <li>Tap <b>Log today</b> or any square on the map to open that day’s log: write a note if you want (the habit’s journal) and press <b>Complete</b>. Days with a note show a small dot. You can also log past days.</li>
+  <li>In each habit’s <b>⋮</b> menu you can rename it, change its color or delete it.</li>
+  <li>Use the year selector to see previous years, <b>Reorder</b> to change the order and the search box (<kbd>Ctrl</kbd> + <kbd>K</kbd>) to filter your habits.</li>
+  <li>At the end of the list you will see ideas for new habits based on the ones you already have. Tap them to add them.</li></ul>`,
+ diario:()=>`<b>How to use the “Diary”</b><ul>
+  <li>Write one entry per day; it saves itself while you type.</li>
+  <li>Type the date as DD/MM/YYYY or pick it with the calendar button.</li>
+  <li>Above you can see which habits you completed that day and the notes you wrote on each one.</li>
+  <li>Tap a previous entry to open and edit it.</li></ul>`,
+ perfil:()=>`<b>Your profile</b><ul>
+  <li>Here you see your <b>days logged</b>, your <b>points</b> (one for each completed habit) and the daily score chart.</li>
+  <li>In “Daily completion”, the more intense the green, the higher the percentage of habits you completed that day.</li>
+  <li>Change your photo and your name in Settings.</li>
+  <li>${conn()?'Your data is saved on this device and synced with your Google account.':'Your data is saved only on this device. Connect Google Drive in Settings to sync it with your other devices.'}</li></ul>`,
+ ajustes:()=>`<b>How to use “Settings”</b><ul>
+  <li>Choose the language, light or dark mode and a background. You can use a different background on each device.</li>
+  <li>Your profile photo and your background images are saved in your Drive if you connect it.</li>
+  <li><b>Export JSON</b> downloads a copy of your data and <b>Import JSON</b> restores it without deleting anything.</li>
+  <li>Connect <b>Google Drive</b> to sync your data between devices. If you see a red notice below the footer, press “Sync now”.</li>
+  <li>On your phone you can install the web app from the browser menu with “Add to home screen”.</li></ul>`
+};
+const TIPS=LANG==='en'?TIPS_EN:TIPS_ES;
 const tip=id=>tipsOff().includes(id)?'':`<div class="ban"><button class="x" data-a="tipx" data-t="${id}" aria-label="Cerrar">✕</button>${TIPS[id]()}</div>`;
 
 // ===== Fondo de la web: los fondos propios se guardan en el navegador (IndexedDB) y en Drive =====
@@ -275,7 +410,7 @@ const wpKeys=()=>idbop('readonly',s=>s.getAllKeys()).then(r=>r||[]).catch(()=>[]
 
 let BGURL='',BGTK=0;
 async function applyBg(){
- const tk=++BGTK,b=$('#bg');let c=S.bg,img='';
+ const tk=++BGTK,b=$('#bg');let c=bgc(),img='';
  if(c.k==='wp'){
   const w=S.wp[c.id];
   if(!w)c={k:'grid',o:1};
@@ -288,12 +423,13 @@ async function applyBg(){
  b.className=c.k==='wp'?'img':c.k;b.style.backgroundImage=img?`url("${img}")`:'';b.style.opacity=c.o;
  document.body.classList.toggle('hb',!['grid','dots','solid'].includes(c.k));
 }
-function setBg(k){S.bg={k,o:PRE[k].o,t:Date.now()};save();applyBg();view()}
-function setWp(id){S.bg={k:'wp',id,o:S.bg.k==='wp'?S.bg.o:.4,t:Date.now()};save();applyBg();view()}
+function setBg(k){putBg({k,o:PRE[k].o});applyBg();view()}
+function setWp(id){const c=bgc();putBg({k:'wp',id,o:c.k==='wp'?c.o:.4});applyBg();view()}
 async function borrarWp(id){
  const w=S.wp[id];if(!w||!confirm('¿Eliminar la imagen “'+w.n+'”? También se borrará de tu Drive.'))return;
  delete S.wp[id];S.wpdel[id]=Date.now();await wpDel(id);
  if(S.bg.k==='wp'&&S.bg.id===id)S.bg={k:'grid',o:1,t:Date.now()};
+ if(BGL&&BGL.k==='wp'&&BGL.id===id){BGL={k:'grid',o:1,t:Date.now()};saveBgl()}
  save();applyBg();view();
 }
 const loadImg=src=>new Promise((res,rej)=>{const i=new Image();i.onload=()=>res(i);i.onerror=()=>rej(new Error('img'));i.src=src});
@@ -319,7 +455,7 @@ async function subirFondo(inp){
    S.wp[id]={n:(f.name||'').replace(/\.[^.]+$/,'').slice(0,24)||'Imagen',th,t:Date.now()};last=id;
   }catch(e){alert('No se pudo usar la imagen “'+(f.name||'')+'”.')}
  }
- if(last){S.bg={k:'wp',id:last,o:.4,t:Date.now()};save();await applyBg();view()}
+ if(last){putBg({k:'wp',id:last,o:.4});save();await applyBg();view()}
 }
 // Sube un fondo a la carpeta oculta de la app en Drive
 async function wpUpload(id,bl){
@@ -347,16 +483,16 @@ async function migrarFondo(){
 }
 function bgHtml(){
  const wps=Object.entries(S.wp).sort((a,b)=>a[1].t-b[1].t);
- const sel=(k,id)=>S.bg.k===k&&(k!=='wp'||S.bg.id===id)?' sel':'';
+ const bc=bgc(),sel=(k,id)=>bc.k===k&&(k!=='wp'||bc.id===id)?' sel':'';
  const tiles=Object.entries(PRE).map(([k,p])=>`<button class="bgb${sel(k)}" data-a="bg" data-k="${k}"><span class="pv ${k}"></span>${p.n}</button>`).join('')
   +wps.map(([id,w])=>`<div class="bgw"><button class="bgb${sel('wp',id)}" data-a="wp" data-id="${id}"><span class="pv" style="background:url('${w.th}') center/cover"></span>${esc(w.n)}</button><button class="bgx" data-a="wpdel" data-id="${id}" title="Eliminar" aria-label="Eliminar">✕</button></div>`).join('');
  return`<h2>Fondo</h2><div class="bgs">${tiles}</div>
- <label for="bgo">Opacidad del fondo: <b id="bgov">${Math.round(S.bg.o*100)}%</b></label>
- <input type="range" id="bgo" min="0" max="100" value="${Math.round(S.bg.o*100)}">
+ <label for="bgo">Opacidad del fondo: <b id="bgov">${Math.round(bc.o*100)}%</b></label>
+ <input type="range" id="bgo" min="0" max="100" value="${Math.round(bc.o*100)}">
+ <label class="chk"><input type="checkbox" id="bgl" ${bgLoc()?'checked':''}> Usar un fondo distinto solo en este dispositivo</label>
  <div class="row" style="justify-content:flex-start;margin-top:14px"><button class="btn" data-a="bgup">Subir imágenes</button></div><input type="file" id="bgf" accept="image/*" multiple hidden>
  <p>${conn()?'Tus imágenes se guardan en tu cuenta de Google Drive y aparecen en todos tus dispositivos.':'Tus imágenes se guardan en este dispositivo. Conecta Google Drive para tenerlas en todos tus dispositivos.'} Puedes guardar hasta ${MAXWP}.</p>`;
 }
-applyBg();migrarFondo();
 
 // <sug>
 const nz=s=>String(s).normalize('NFD').replace(/[\u0300-\u036f]/g,'').toLowerCase().trim();
@@ -411,27 +547,78 @@ function sug(){
 }
 function sugAdd(n,c){
  const ks=Object.keys(CAT),i=ks.indexOf(c);
- S.habits.push({id:nid(),name:n,color:COL[(i>=0?i:S.habits.length)%COL.length],created:key(today()),u:Date.now(),dates:{},dx:{}});save();list();
+ S.habits.push({id:nid(),name:n,color:COL[(i>=0?i:S.habits.length)%COL.length],created:key(today()),u:Date.now(),dates:{},dx:{},jn:{},jm:{}});save();list();
 }
 function sugNo(n){const l=nosug();l.push(nz(n));try{localStorage.setItem('habitos_nosug',JSON.stringify(l))}catch(e){}sug()}
 
+// ===== Journal de cada hábito (ventana al marcar un día) =====
+let JH=null,JK=null;
+const streakAt=(h,k)=>{let n=1;const d=new Date(k+'T00:00:00');d.setDate(d.getDate()-1);while(h.dates[key(d)]){n++;d.setDate(d.getDate()-1)}return n};
+function abrirJ(id,k){
+ const h=find(id);if(!h)return;JH=id;JK=k;
+ const done=!!h.dates[k],n=streakAt(h,k);
+ $('#jdot').style.background=h.color||'#19c39a';$('#jname').textContent=h.name;$('#jdate').textContent=fmt(k);
+ $('#jt').value=h.jn[k]||'';
+ $('#jst').innerHTML='<b>'+n+'</b> '+(n===1?'día':'días')+' de racha';
+ $('#jok').textContent=done?'Guardar':'Completar';$('#jun').hidden=!done;
+ $('#jd').showModal();$('#jt').focus();
+}
+$('#jok').onclick=()=>{
+ const h=find(JH);if(!h)return;const k=JK,t=Date.now(),tx=$('#jt').value.trim(),had=!!h.jn[k];
+ if(!h.dates[k]){h.dates[k]=t;delete h.dx[k];if(k<h.created)h.created=k}
+ if(tx)h.jn[k]=tx;else delete h.jn[k];
+ if(tx||had)h.jm[k]=t;
+ save();list();$('#jd').close();
+};
+$('#jun').onclick=()=>{const h=find(JH);if(!h)return;delete h.dates[JK];h.dx[JK]=Date.now();save();list();$('#jd').close()};
+const notes=k=>S.habits.filter(h=>h.jn[k]).map(h=>`<div class="hn"><b>${esc(h.name)}:</b> ${esc(h.jn[k])}</div>`).join('');
+
+// ===== Foto de perfil (cuadrada, 256 px; viaja dentro del archivo de datos) =====
+const avHtml=()=>S.av.d?`<div class="av" style="background:url('${S.av.d}') center/cover"></div>`:`<div class="av">${esc((S.user||'U')[0].toUpperCase())}</div>`;
+async function fotoPerfil(inp){
+ const f=inp.files[0];inp.value='';if(!f)return;
+ const url=URL.createObjectURL(f);
+ try{
+  const im=await loadImg(url),s=Math.min(im.width,im.height),c=document.createElement('canvas');
+  c.width=c.height=256;c.getContext('2d').drawImage(im,(im.width-s)/2,(im.height-s)/2,s,s,0,0,256,256);
+  S.av={d:c.toDataURL('image/jpeg',.85),t:Date.now()};save();view();
+ }catch(e){alert('No se pudo usar esa foto.')}
+ finally{URL.revokeObjectURL(url)}
+}
+
+// ===== Fondo distinto por dispositivo (opcional) =====
+const BGL_K='habitos_bgl',LOC_K='habitos_bgloc';
+const bgLoc=()=>{try{return localStorage.getItem(LOC_K)==='1'}catch(e){return false}};
+let BGL=(()=>{try{return JSON.parse(localStorage.getItem(BGL_K))}catch(e){return null}})();
+const saveBgl=()=>{try{localStorage.setItem(BGL_K,JSON.stringify(BGL))}catch(e){}};
+const bgc=()=>bgLoc()?(BGL||(BGL={...S.bg})):S.bg;
+function putBg(c){c.t=Date.now();if(bgLoc()){BGL=c;saveBgl()}else{S.bg=c;save()}}
+function liveBg(o){const c=bgc();c.o=o;if(bgLoc())saveBgl();else persist()}
+function bgLocal(on){
+ if(on){BGL={...S.bg};saveBgl();try{localStorage.setItem(LOC_K,'1')}catch(e){}}
+ else{try{localStorage.removeItem(LOC_K)}catch(e){}}
+ applyBg();view();
+}
+
+applyBg();migrarFondo();
 let DK=key(today());
 const done=k=>S.habits.filter(h=>h.dates[k]).map(h=>h.name);
-const fd=k=>new Date(k+'T00:00:00').toLocaleDateString('es',{weekday:'long',day:'numeric',month:'long',year:'numeric'});
+const fd=k=>new Date(k+'T00:00:00').toLocaleDateString(LANG==='en'?'en-GB':'es',{weekday:'long',day:'numeric',month:'long',year:'numeric'});
 const chips=k=>{const d=done(k);return d.length?d.map(n=>`<span class="chip">✓ ${esc(n)}</span>`).join(''):'<span class="chip off">Sin hábitos registrados</span>'};
 function diario(){
  return`<div class="set" style="max-width:700px">${tip('diario')}<h2 style="margin-top:8px">Diario</h2>
- <label for="dt">Día</label><input type="date" id="dt" value="${DK}" max="${key(today())}">
- <div class="chips" id="chips"></div>
+ <label for="dt">Día</label><div class="dtw"><input type="text" id="dt" value="${fmt(DK)}" inputmode="numeric" maxlength="10" placeholder="DD/MM/AAAA" autocomplete="off"><button type="button" class="btn" data-a="cal" aria-label="Calendario">▦</button><input type="date" id="dtn" class="dtn" value="${DK}" max="${key(today())}" tabindex="-1" aria-hidden="true"></div>
+ <div class="chips" id="chips"></div><div id="hn"></div>
  <label for="tx" style="margin-top:16px">¿Cómo te fue este día?</label>
  <textarea id="tx" rows="6" placeholder="Escribe lo que quieras recordar de este día…">${esc(S.diary[DK]||'')}</textarea>
  <p id="st">Se guarda solo mientras escribes.</p>
  <h2>Entradas anteriores</h2><div id="ents"></div></div>`;
 }
 function ents(){
- $('#chips').innerHTML=chips(DK);
- const ks=Object.keys(S.diary).sort().reverse();
- $('#ents').innerHTML=ks.length?ks.map(k=>`<article class="ent${k===DK?' cur':''}" data-k="${k}"><b>${fd(k)}</b><div class="chips">${chips(k)}</div><p>${esc(S.diary[k])}</p></article>`).join(''):'<div class="empty">Aún no hay entradas. Escribe la de hoy.</div>';
+ $('#chips').innerHTML=chips(DK);$('#hn').innerHTML=notes(DK);
+ const ds=new Set(Object.keys(S.diary));S.habits.forEach(h=>Object.keys(h.jn).forEach(k=>ds.add(k)));
+ const ks=[...ds].sort().reverse();
+ $('#ents').innerHTML=ks.length?ks.map(k=>`<article class="ent${k===DK?' cur':''}" data-k="${k}"><b>${fd(k)}</b><div class="chips">${chips(k)}</div>${S.diary[k]?`<p>${esc(S.diary[k])}</p>`:''}${notes(k)}</article>`).join(''):'<div class="empty">Aún no hay entradas. Escribe la de hoy.</div>';
 }
 function view(){
  const v=location.hash.slice(1)||'habitos';
@@ -440,20 +627,20 @@ function view(){
  const a=$('#app');
  if(v==='perfil'){a.innerHTML=perfil();scrollHM()}
  else if(v==='diario'){a.innerHTML=diario();ents()}
- else if(v==='ajustes'){a.innerHTML=ajustes();$('#th').value=S.theme;$('#dst').textContent=dst()}
- else{a.innerHTML=`${tip('habitos')}<div class="tb"><label class="sb"><span>⌕</span><input id="q" placeholder="Buscar hábitos" value="${esc(Q)}"><kbd>Ctrl</kbd><kbd>K</kbd></label>${yrsel()}<button class="btn" data-a="reord">Reordenar ⇅</button><button class="btn" data-a="new">Crear hábito ▾</button></div><div id="list"></div><div id="sug"></div>`;list()}
+ else if(v==='ajustes'){a.innerHTML=ajustes();$('#th').value=S.theme;$('#lg').value=LANG;$('#dst').textContent=dst()}
+ else{a.innerHTML=`${tip('habitos2')}<div class="tb"><label class="sb"><span>⌕</span><input id="q" placeholder="Buscar hábitos" value="${esc(Q)}"><kbd>Ctrl</kbd><kbd>K</kbd></label>${yrsel()}<button class="btn" data-a="reord">Reordenar ⇅</button><button class="btn" data-a="new">Crear hábito ▾</button></div><div id="list"></div><div id="sug"></div>`;list()}
 }
 const find=id=>S.habits.find(h=>h.id===id);
 function toggle(id,k){const h=find(id),t=Date.now();if(h.dates[k]){delete h.dates[k];h.dx[k]=t}else{h.dates[k]=t;delete h.dx[k];if(k<h.created)h.created=k}save();list()}
 
 $('#app').addEventListener('click',e=>{
  const en=e.target.closest('.ent');if(en){DK=en.dataset.k;view();return scrollTo(0,0)}
- const c=e.target.closest('.c[data-d]');if(c)return toggle(c.dataset.h,c.dataset.d);
+ const c=e.target.closest('.c[data-d]');if(c)return abrirJ(c.dataset.h,c.dataset.d);
  const b=e.target.closest('[data-a]');if(!b)return;
  const a=b.dataset.a,sec=b.closest('.card'),id=sec&&sec.dataset.id,h=id&&find(id);
  if(a==='new'){$('#nm').value='';$('#dlg').showModal();$('#nm').focus()}
  else if(a==='reord'){REORD=!REORD;list()}
- else if(a==='today')toggle(id,key(today()));
+ else if(a==='today')abrirJ(id,key(today()));
  else if(a==='exp')exportar();
  else if(a==='imp')$('#fi').click();
  else if(a==='conn')sync(true);
@@ -462,9 +649,12 @@ $('#app').addEventListener('click',e=>{
  else if(a==='bgup')$('#bgf').click();
  else if(a==='wp')setWp(b.dataset.id);
  else if(a==='wpdel')borrarWp(b.dataset.id);
- else if(a==='sugadd')sugAdd(b.dataset.n,b.dataset.c);
+ else if(a==='sugadd')sugAdd(tr(b.dataset.n),b.dataset.c);
  else if(a==='sugno')sugNo(b.dataset.n);
  else if(a==='sugmas'){SUGO++;sug()}
+ else if(a==='cal'){const n=$('#dtn');try{n.showPicker()}catch(x){n.click()}}
+ else if(a==='avup')$('#avf').click();
+ else if(a==='avrm'){S.av={d:'',t:Date.now()};save();view()}
  else if(a==='tipx'){const l=tipsOff();l.push(b.dataset.t);try{localStorage.setItem(TIPK,JSON.stringify(l))}catch(e){}b.closest('.ban').remove()}
  else if(a==='tips'){try{localStorage.removeItem(TIPK)}catch(e){}view()}
  else if(a==='col'){const c=$('#cc');c.value=h.color||'#19c39a';c.dataset.h=id;c.click()}
@@ -475,20 +665,25 @@ $('#app').addEventListener('click',e=>{
 $('#app').addEventListener('input',e=>{
  if(e.target.id==='q'){Q=e.target.value;list()}
  if(e.target.id==='un'){S.user=e.target.value.trim()||'Usuario';save()}
- if(e.target.id==='bgo'){S.bg.o=e.target.value/100;$('#bg').style.opacity=S.bg.o;$('#bgov').textContent=e.target.value+'%';persist()}
+ if(e.target.id==='bgo'){const o=e.target.value/100;liveBg(o);$('#bg').style.opacity=o;$('#bgov').textContent=e.target.value+'%'}
+ if(e.target.id==='dt')e.target.value=mask(e.target.value);
  if(e.target.id==='tx'){const v=e.target.value;if(v.trim())S.diary[DK]=v;else delete S.diary[DK];S.dm[DK]=Date.now();save();ents();$('#st').textContent='Guardado'}
 });
 $('#app').addEventListener('change',e=>{
  if(e.target.id==='th'){S.theme=e.target.value;save();applyTheme()}
- if(e.target.id==='dt'&&e.target.value){DK=e.target.value;view()}
+ if(e.target.id==='dtn'&&e.target.value){DK=e.target.value;view()}
+ if(e.target.id==='dt'){const k=parseF(e.target.value);if(k&&k<=key(today())){DK=k;view()}else e.target.value=fmt(DK)}
+ if(e.target.id==='lg'){try{localStorage.setItem(LK,e.target.value)}catch(x){}location.reload()}
+ if(e.target.id==='avf')fotoPerfil(e.target);
+ if(e.target.id==='bgl')bgLocal(e.target.checked);
  if(e.target.id==='fi')importar(e.target);
  if(e.target.id==='bgf')subirFondo(e.target);
- if(e.target.id==='bgo'){S.bg.t=Date.now();save()}
+ if(e.target.id==='bgo')putBg({...bgc()});
  if(e.target.id==='yr'){YR=e.target.value?+e.target.value:null;view()}
 });
 $('#frm').addEventListener('submit',()=>{
  const n=$('#nm').value.trim();if(!n)return;
- S.habits.push({id:Date.now().toString(36)+Math.random().toString(36).slice(2,6),name:n,color:$('#col').value,created:key(today()),u:Date.now(),dates:{},dx:{}});save();list();
+ S.habits.push({id:Date.now().toString(36)+Math.random().toString(36).slice(2,6),name:n,color:$('#col').value,created:key(today()),u:Date.now(),dates:{},dx:{},jn:{},jm:{}});save();list();
 });
 $('#cx').onclick=()=>$('#dlg').close();
 $('#cc').addEventListener('change',e=>{const h=find(e.target.dataset.h);if(!h)return;h.color=e.target.value;h.u=Date.now();save();list()});
@@ -518,7 +713,12 @@ function merge(A,B){
    const on=mx(a.dates[k],b.dates[k]),off=mx(a.dx[k],b.dx[k]);
    if(on>off)dates[k]=on;else if(off)dx[k]=off;
   });
-  return{id,name:bs.name,color:bs.color,u:mx(a.u,b.u),created:a.created<b.created?a.created:b.created,dates,dx};
+  const jn={},jm={};
+  new Set([...Object.keys(a.jn),...Object.keys(b.jn),...Object.keys(a.jm),...Object.keys(b.jm)]).forEach(k=>{
+   const ta=a.jm[k]||0,tb=b.jm[k]||0,w=ta>=tb?a:b,o=w===a?b:a,t=Math.max(ta,tb),x=w.jn[k]||(t?'':(o.jn[k]||''));
+   if(t)jm[k]=t;if(x)jn[k]=x;
+  });
+  return{id,name:bs.name,color:bs.color,u:mx(a.u,b.u),created:a.created<b.created?a.created:b.created,dates,dx,jn,jm};
  });
  const diary={},dm={};
  new Set([...Object.keys(A.diary),...Object.keys(B.diary),...Object.keys(A.dm),...Object.keys(B.dm)]).forEach(k=>{
@@ -527,8 +727,8 @@ function merge(A,B){
  });
  const wpdel={...B.wpdel,...A.wpdel},wp={};
  [B.wp,A.wp].forEach(m=>Object.keys(m).forEach(id=>{if(!wpdel[id])wp[id]=m[id]}));
- const bg=(A.bg.t||0)>=(B.bg.t||0)?A.bg:B.bg;
- return{habits,diary,dm,del,wp,wpdel,bg,user:nw.user,theme:A.theme,mt:mx(A.mt,B.mt),om:mx(A.om,B.om)};
+ const bg=(A.bg.t||0)>=(B.bg.t||0)?A.bg:B.bg,av=(A.av.t||0)>=(B.av.t||0)?A.av:B.av;
+ return{habits,diary,dm,del,wp,wpdel,bg,av,user:nw.user,theme:A.theme,mt:mx(A.mt,B.mt),om:mx(A.om,B.om)};
 }
 // </merge>
 
